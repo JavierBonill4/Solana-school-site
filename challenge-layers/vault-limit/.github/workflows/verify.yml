@@ -1,0 +1,102 @@
+# Solana Summer grader — Assignment 01, Vault.
+#
+# SEALED. The submission checker compares this file's blob SHA against the
+# upstream copy. Editing it fails your submission before anything is read.
+#
+# It runs in YOUR fork, on YOUR free Actions minutes. Nothing here uploads
+# your source anywhere, and the site never executes it — it only reads the
+# result this job publishes.
+
+name: verify
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      CHALLENGE_ID: vault-limit
+      PROGRAM_SO: target/deploy/lamports_vault.so
+      # Pinned so a learner cannot point the run at a pack of their own.
+      MUTANT_PACK_URL: https://github.com/JavierBonill4/solana-summer-mutants/releases/download/vault-v1/vault-v1.tar.gz
+      MUTANT_PACK_SHA256: c4e96c52d7e2ba4e21783e9792b8c19d22c8c872152c030ed43fc9286491053a
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Solana toolchain
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 1.1.2
+          avm use 1.1.2
+
+      # ── build the learner's program ─────────────────────────────────────
+      - name: anchor build
+        id: build
+        run: anchor build
+
+      # ── fetch the mutant pack (reference.so + the buggy builds) ─────────
+      - name: Fetch mutant pack
+        run: |
+          curl -sSfL -o mutants.tar.gz "$MUTANT_PACK_URL"
+          echo "$MUTANT_PACK_SHA256  mutants.tar.gz" | sha256sum -c -
+          mkdir -p .mutants
+          tar xzf mutants.tar.gz -C .mutants
+        # TEMPORARY: no mutant pack published yet, so let this step fail
+        # without killing the run. grade.py handles a missing reference.so by
+        # reporting "killed 0/0". REMOVE this line once the pack is live, or a
+        # broken pack URL will silently score every submission 0 on mutation.
+        # continue-on-error: true
+
+      # ── grade ───────────────────────────────────────────────────────────
+      - name: Grade
+        run: python3 grader/grade.py
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-summer-result
+          path: result.json
+          if-no-files-found: error
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f result.json ]; then
+            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open("result.json"))
+          c, m = r["canonical"], r["mutation"]
+          print("## Solana Summer — " + r["challenge"])
+          print()
+          print(f"**Canonical suite:** {c['passed']}/{c['total']}")
+          print(f"**Your tests on the reference build:** "
+                f"{'pass' if r['reference_check']['tests_pass_on_correct_program'] else 'FAIL'}")
+          print(f"**Mutants killed:** {m['killed']}/{m['total']}")
+          print()
+          if r["notes"]:
+              print("### Notes")
+              for n in r["notes"]:
+                  print(f"- {n}")
+          PY
+          fi
