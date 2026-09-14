@@ -69,15 +69,43 @@ Set these in your host, not in a file:
 |---|---|
 | `DATABASE_URL` | pooled Postgres connection string |
 | `SESSION_SECRET` | fresh 32 random bytes, different from dev |
-| `NEXT_PUBLIC_SITE_ORIGIN` | `https://your-domain` — must match the browser bar exactly |
+| `NEXT_PUBLIC_SITE_ORIGIN` | **Leave unset on Vercel.** See below. |
 | `ADMIN_PUBKEYS` | your wallet, comma separated for more |
 | `GITHUB_TOKEN` | the bot account's classic `repo` token |
 
-`NEXT_PUBLIC_SITE_ORIGIN` is the one that bites. The wallet signs your domain
-and the server checks it, so a mismatch rejects every sign-in with "that
-signature was issued for a different site". On Vercel, `VERCEL_URL` and
-`VERCEL_PROJECT_PRODUCTION_URL` are read automatically as well, so preview
-deployments work without extra configuration.
+### About `NEXT_PUBLIC_SITE_ORIGIN`
+
+There is a chicken-and-egg here — you cannot know your URL until after the
+first deploy — so the code does not make you guess. `app/api/auth/verify`
+builds its allowlist from:
+
+```
+NEXT_PUBLIC_SITE_ORIGIN
+VERCEL_PROJECT_PRODUCTION_URL   ← set by Vercel
+VERCEL_BRANCH_URL               ← set by Vercel
+VERCEL_URL                      ← set by Vercel
+```
+
+Vercel injects those three automatically, so **on a first Vercel deploy you
+leave `NEXT_PUBLIC_SITE_ORIGIN` unset and sign-in works**, on production and
+on every preview deployment.
+
+Set it explicitly in one case: when you attach a **custom domain**. Then use
+exactly what appears in the browser bar, scheme included:
+
+```
+NEXT_PUBLIC_SITE_ORIGIN=https://solanasummer.dev
+```
+
+Why it matters: the wallet signs your domain and the server checks it, which
+is what stops a signature a learner was tricked into producing elsewhere from
+being replayed here. A mismatch rejects sign-in with "that signature was
+issued for … which is not this site", and the server logs both the domain it
+saw and the ones it would have accepted.
+
+Locally, `.env.local` keeps `http://localhost:3000` — there are no `VERCEL_*`
+variables on your machine, and with an empty allowlist the route refuses
+everyone rather than accepting anyone.
 
 ## 4. Deploy
 

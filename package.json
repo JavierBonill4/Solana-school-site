@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:push": "node --env-file-if-exists=.env.local ./node_modules/drizzle-kit/bin.cjs push",
+    "db:studio": "node --env-file-if-exists=.env.local ./node_modules/drizzle-kit/bin.cjs studio"
   },
   "dependencies": {
     "@solana/wallet-adapter-base": "^0.9.23",

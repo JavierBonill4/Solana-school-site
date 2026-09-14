@@ -3,6 +3,7 @@ import { readSession } from "@/lib/session";
 import { isAdmin } from "@/lib/admin";
 import {
   getChallengePoints,
+  getProfile,
   getClaims,
   getPoints,
   getSideQuestPoints,
@@ -22,7 +23,7 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const [points, challengePoints, questPoints, submissions, claims, admin] =
+  const [points, challengePoints, questPoints, submissions, claims, admin, profile] =
     await Promise.all([
       getPoints(session.pubkey),
       getChallengePoints(session.pubkey),
@@ -30,10 +31,13 @@ export async function GET() {
       getSubmissions(session.pubkey),
       getClaims(session.pubkey),
       isAdmin(),
+      getProfile(session.pubkey),
     ]);
 
   return NextResponse.json({
     pubkey: session.pubkey,
+    displayName: profile.displayName,
+    githubLogin: profile.githubLogin,
     points,
     challengePoints,
     questPoints,

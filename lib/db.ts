@@ -2,9 +2,12 @@ import "server-only";
 import { randomUUID } from "crypto";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 import {
+  attendanceRecords,
+  attendanceSessions,
   authNonces,
+  nameAliases,
   pointsLedger,
   sideQuestClaims,
   submissions,
@@ -18,6 +21,7 @@ import type {
   SubmissionStatus,
 } from "./types";
 import { CHALLENGES } from "./challenges";
+import { normalizeName } from "./attendance";
 
 /**
  * The only file that talks to the database.
@@ -404,4 +408,296 @@ export async function consumeNonce(nonce: string): Promise<boolean> {
     .where(and(eq(authNonces.nonce, nonce), sql`${authNonces.expiresAt} > now()`))
     .returning({ nonce: authNonces.nonce });
   return rows.length > 0;
+}
+
+// ── profiles ─────────────────────────────────────────────────────────────
+
+export interface Profile {
+  pubkey: string;
+  displayName: string | null;
+  githubLogin: string | null;
+}
+
+export async function getProfile(pubkey: string): Promise<Profile> {
+  const [row] = await db()
+    .select({
+      pubkey: users.pubkey,
+      displayName: users.displayName,
+      githubLogin: users.githubLogin,
+    })
+    .from(users)
+    .where(eq(users.pubkey, pubkey));
+  return row ?? { pubkey, displayName: null, githubLogin: null };
+}
+
+export async function setDisplayName(
+  pubkey: string,
+  displayName: string | null
+): Promise<void> {
+  await ensureUser(pubkey);
+  await db().update(users).set({ displayName }).where(eq(users.pubkey, pubkey));
+}
+
+/**
+ * Record the GitHub account a passing submission came from.
+ *
+ * Called only after a submission verifies, so the value is proven rather
+ * than claimed. `github_login` is unique: if another wallet already holds it,
+ * that is worth knowing about, not worth crashing a submission over.
+ */
+export async function recordGithubLogin(
+  pubkey: string,
+  login: string
+): Promise<void> {
+  const current = await getGithubLogin(pubkey);
+  if (current === login) return;
+  try {
+    await db().update(users).set({ githubLogin: login }).where(eq(users.pubkey, pubkey));
+  } catch (e) {
+    console.error(
+      `[users] could not set github_login=${login} for ${pubkey}; ` +
+        `another wallet probably already claims it.`,
+      e
+    );
+  }
+}
+
+// ── attendance ───────────────────────────────────────────────────────────
+
+export interface AttendanceSessionRow {
+  id: string;
+  heldOn: string;
+  label: string | null;
+  sourceFilename: string | null;
+  total: number;
+  matched: number;
+}
+
+/**
+ * Import one roster.
+ *
+ * Names are matched against remembered aliases first, then display names,
+ * then GitHub logins. Anything left over is stored with a null pubkey — that
+ * is the normal case, not a failure, and the admin page exists to resolve it.
+ */
+export async function createAttendanceSession(input: {
+  heldOn: string;
+  label?: string;
+  sourceFilename?: string;
+  names: string[];
+}): Promise<{ sessionId: string; total: number; matched: number }> {
+  const sessionId = randomUUID();
+
+  await db().insert(attendanceSessions).values({
+    id: sessionId,
+    heldOn: input.heldOn,
+    label: input.label,
+    sourceFilename: input.sourceFilename,
+  });
+
+  const lookup = await buildNameLookup();
+
+  let matched = 0;
+  for (const rawName of input.names) {
+    const pubkey = lookup.get(normalizeName(rawName)) ?? null;
+    if (pubkey) matched += 1;
+    await db()
+      .insert(attendanceRecords)
+      .values({ id: randomUUID(), sessionId, rawName, userPubkey: pubkey })
+      .onConflictDoNothing();
+  }
+
+  return { sessionId, total: input.names.length, matched };
+}
+
+/** normalized name -> pubkey, from aliases, display names and GitHub logins. */
+async function buildNameLookup(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+
+  const people = await db()
+    .select({
+      pubkey: users.pubkey,
+      displayName: users.displayName,
+      githubLogin: users.githubLogin,
+    })
+    .from(users);
+
+  for (const p of people) {
+    if (p.githubLogin) map.set(normalizeName(p.githubLogin), p.pubkey);
+    if (p.displayName) map.set(normalizeName(p.displayName), p.pubkey);
+  }
+
+  // Aliases are explicit human decisions, so they win over inferred matches.
+  const aliases = await db()
+    .select({ alias: nameAliases.alias, pubkey: nameAliases.userPubkey })
+    .from(nameAliases);
+  for (const a of aliases) map.set(a.alias, a.pubkey);
+
+  return map;
+}
+
+export async function listAttendanceSessions(): Promise<AttendanceSessionRow[]> {
+  const sessions = await db()
+    .select()
+    .from(attendanceSessions)
+    .orderBy(desc(attendanceSessions.heldOn));
+
+  const out: AttendanceSessionRow[] = [];
+  for (const s of sessions) {
+    const rows = await db()
+      .select({ userPubkey: attendanceRecords.userPubkey })
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.sessionId, s.id));
+    out.push({
+      id: s.id,
+      heldOn: s.heldOn,
+      label: s.label,
+      sourceFilename: s.sourceFilename,
+      total: rows.length,
+      matched: rows.filter((r) => r.userPubkey).length,
+    });
+  }
+  return out;
+}
+
+export async function getAttendanceSession(sessionId: string) {
+  const [session] = await db()
+    .select()
+    .from(attendanceSessions)
+    .where(eq(attendanceSessions.id, sessionId));
+  if (!session) return null;
+
+  const records = await db()
+    .select({
+      id: attendanceRecords.id,
+      rawName: attendanceRecords.rawName,
+      userPubkey: attendanceRecords.userPubkey,
+      displayName: users.displayName,
+      githubLogin: users.githubLogin,
+    })
+    .from(attendanceRecords)
+    .leftJoin(users, eq(attendanceRecords.userPubkey, users.pubkey))
+    .where(eq(attendanceRecords.sessionId, sessionId));
+
+  return { session, records };
+}
+
+/**
+ * Attach an unmatched name to a wallet, and remember the spelling so the
+ * same roster line matches itself next week.
+ */
+export async function matchAttendanceName(
+  recordId: string,
+  pubkey: string
+): Promise<void> {
+  const [record] = await db()
+    .select()
+    .from(attendanceRecords)
+    .where(eq(attendanceRecords.id, recordId));
+  if (!record) return;
+
+  await db()
+    .update(attendanceRecords)
+    .set({ userPubkey: pubkey })
+    .where(eq(attendanceRecords.id, recordId));
+
+  const alias = normalizeName(record.rawName);
+  await db()
+    .insert(nameAliases)
+    .values({ alias, userPubkey: pubkey })
+    .onConflictDoUpdate({
+      target: nameAliases.alias,
+      set: { userPubkey: pubkey },
+    });
+
+  // Apply the new alias to every other roster where it is still unresolved.
+  // Normalising in JS rather than SQL, so this uses exactly the same rules as
+  // the import did — a regexp_replace here would drift from normalizeName()
+  // the moment either one changes.
+  const orphans = await db()
+    .select({ id: attendanceRecords.id, rawName: attendanceRecords.rawName })
+    .from(attendanceRecords)
+    .where(isNull(attendanceRecords.userPubkey));
+
+  for (const o of orphans) {
+    if (normalizeName(o.rawName) !== alias) continue;
+    await db()
+      .update(attendanceRecords)
+      .set({ userPubkey: pubkey })
+      .where(eq(attendanceRecords.id, o.id));
+  }
+}
+
+// ── students ─────────────────────────────────────────────────────────────
+
+export async function listStudents() {
+  const people = await db()
+    .select({
+      pubkey: users.pubkey,
+      displayName: users.displayName,
+      githubLogin: users.githubLogin,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .orderBy(desc(users.createdAt));
+
+  const out = [];
+  for (const p of people) {
+    const subs = await getSubmissions(p.pubkey);
+    const attended = await db()
+      .select({ id: attendanceRecords.id })
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.userPubkey, p.pubkey));
+    out.push({
+      ...p,
+      createdAt: p.createdAt.toISOString(),
+      passed: subs.filter((s) => s.status === "passed").length,
+      submitted: subs.length,
+      attended: attended.length,
+      points: await getPoints(p.pubkey),
+    });
+  }
+  return out;
+}
+
+export async function getStudentAttendance(pubkey: string) {
+  return db()
+    .select({
+      heldOn: attendanceSessions.heldOn,
+      label: attendanceSessions.label,
+      rawName: attendanceRecords.rawName,
+    })
+    .from(attendanceRecords)
+    .innerJoin(
+      attendanceSessions,
+      eq(attendanceRecords.sessionId, attendanceSessions.id)
+    )
+    .where(eq(attendanceRecords.userPubkey, pubkey))
+    .orderBy(desc(attendanceSessions.heldOn));
+}
+
+/** Every submission for one challenge, newest first, with who made it. */
+export async function getSubmissionsForChallenge(challengeId: string) {
+  return db()
+    .select({
+      id: submissions.id,
+      userPubkey: submissions.userPubkey,
+      displayName: users.displayName,
+      githubLogin: users.githubLogin,
+      repoFullName: submissions.repoFullName,
+      commitSha: submissions.commitSha,
+      status: submissions.status,
+      canonicalPassed: submissions.canonicalPassed,
+      canonicalTotal: submissions.canonicalTotal,
+      mutantsKilled: submissions.mutantsKilled,
+      mutantsTotal: submissions.mutantsTotal,
+      pointsAwarded: submissions.pointsAwarded,
+      runUrl: submissions.runUrl,
+      reason: submissions.reason,
+      createdAt: submissions.createdAt,
+    })
+    .from(submissions)
+    .leftJoin(users, eq(submissions.userPubkey, users.pubkey))
+    .where(eq(submissions.challengeId, challengeId))
+    .orderBy(desc(submissions.createdAt));
 }

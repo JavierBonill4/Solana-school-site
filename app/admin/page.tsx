@@ -50,6 +50,28 @@ export default async function AdminPage() {
         <div className="head">
           <div className="eyebrow">
             <span className="rule" />
+            <span className="lbl">Go to</span>
+          </div>
+          <h2>Roster and records.</h2>
+        </div>
+
+        <div className="actions" style={{ marginTop: 0 }}>
+          <Link className="btn" href="/admin/students">
+            Students
+          </Link>
+          <Link className="btn quiet" href="/admin/submissions">
+            Submissions
+          </Link>
+          <Link className="btn quiet" href="/admin/attendance">
+            Attendance
+          </Link>
+        </div>
+      </section>
+
+      <section className="block">
+        <div className="head">
+          <div className="eyebrow">
+            <span className="rule" />
             <span className="lbl">Solutions</span>
           </div>
           <h2>One file per challenge.</h2>

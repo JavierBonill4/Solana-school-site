@@ -14,6 +14,7 @@ const NAV = [
   { href: "/portfolio", label: "Portfolio" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/ecosystem", label: "Ecosystem" },
+  { href: "/profile", label: "Profile" },
 ];
 
 const STATE_LABEL: Record<SideQuestState, string> = {

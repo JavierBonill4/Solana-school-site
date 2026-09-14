@@ -19,7 +19,9 @@ export function ConnectButton() {
       <div className="wallet-box">
         <div className="addr">
           <span className="avat" />
-          <span>{shortAddress(address, 4, 4)}</span>
+          <span title={address}>
+            {profile?.displayName || shortAddress(address, 4, 4)}
+          </span>
         </div>
         {signingIn && <p className="lbl">Waiting for signature…</p>}
         {error && (

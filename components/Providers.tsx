@@ -20,6 +20,8 @@ import type { SideQuestClaim, Submission } from "@/lib/types";
 
 export interface Profile {
   pubkey: string;
+  displayName: string | null;
+  githubLogin: string | null;
   points: number;
   challengePoints: number;
   questPoints: number;

@@ -16,6 +16,13 @@ import {
 
 export const users = pgTable("users", {
   pubkey: text("pubkey").primaryKey(),
+  /** What a person calls themselves. Optional, set on /profile. */
+  displayName: text("display_name"),
+  /**
+   * Filled in from the fork owner on a passing submission, not typed by the
+   * learner — wallet-pubkey in that fork already proves the two belong
+   * together, so there is no reason to trust a self-declared value.
+   */
   githubLogin: text("github_login").unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -115,6 +122,60 @@ export const pointsLedger = pgTable(
 export const authNonces = pgTable("auth_nonces", {
   nonce: text("nonce").primaryKey(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+/** One upload: a dated roster file. */
+export const attendanceSessions = pgTable("attendance_sessions", {
+  id: text("id").primaryKey(),
+  /** The day being recorded, not the day it was uploaded. */
+  heldOn: text("held_on").notNull(),
+  label: text("label"),
+  sourceFilename: text("source_filename"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * One name from one roster.
+ *
+ * `rawName` is kept exactly as written even after a match, because that is
+ * the only way an unmatched row stays visible and fixable. A record with a
+ * null userPubkey is not an error — most rows start that way, since setting a
+ * display name is optional.
+ */
+export const attendanceRecords = pgTable(
+  "attendance_records",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => attendanceSessions.id, { onDelete: "cascade" }),
+    rawName: text("raw_name").notNull(),
+    userPubkey: text("user_pubkey").references(() => users.pubkey),
+  },
+  (t) => ({
+    once: uniqueIndex("attendance_once").on(t.sessionId, t.rawName),
+    bySession: index("attendance_by_session").on(t.sessionId),
+    byUser: index("attendance_by_user").on(t.userPubkey),
+  })
+);
+
+/**
+ * "Javi B" means this wallet.
+ *
+ * Reconciling a name by hand writes one of these, so the same spelling
+ * matches itself on every later upload. Without it you would re-match the
+ * same roster every week.
+ */
+export const nameAliases = pgTable("name_aliases", {
+  alias: text("alias").primaryKey(),
+  userPubkey: text("user_pubkey")
+    .notNull()
+    .references(() => users.pubkey),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const _sql = sql;

@@ -15,6 +15,7 @@ import {
 import {
   appendLedger,
   findRepoClaimant,
+  recordGithubLogin,
   findSubmission,
   getAwardedForChallenge,
   recordSubmission,
@@ -403,6 +404,13 @@ export async function POST(req: Request) {
         (result.reference_check.tests_pass_on_correct_program
           ? ""
           : " · your tests fail against the correct program, so mutation scored 0");
+
+  // The fork owner is proven at this point — wallet-pubkey in that repo named
+  // this wallet, and only the owner can write it. Worth keeping, so the admin
+  // roster reads as people rather than addresses.
+  if (repo.owner?.login) {
+    await recordGithubLogin(session.pubkey, repo.owner.login);
+  }
 
   await recordSubmission({
     ...ctx,
