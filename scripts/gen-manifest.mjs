@@ -2,56 +2,105 @@
 /**
  * Generate the integrity manifest for a challenge.
  *
- *   node scripts/gen-manifest.mjs <owner>/<repo> [ref] [challenge-id]
+ *   node scripts/gen-manifest.mjs <owner>/<repo> <ref> <challenge-id>
  *
  * Reads the repo tree from GitHub in one call and prints a manifest entry you
  * paste into lib/manifests.ts. Never hand-write these — a wrong SHA rejects
  * every honest submission, and there is no error message that tells you why.
  *
  * Set GITHUB_TOKEN to avoid the 60 req/hour anonymous rate limit.
+ *
+ * The challenge id is required, not decorative: it picks the profile below,
+ * and the profiles differ by program directory. Generating the vault's file
+ * list against the escrow repo produces an entry that pins nothing real and
+ * rejects everything, with no error to say so.
  */
 
-// Files whose contents decide the grade. Anything here must be byte-identical
-// in a learner's fork.
-const LOCKED = [
-  ".github/workflows/verify.yml",
-  "grader/grade.py",
-  "programs/lamports-vault/tests/canonical.rs",
-  "Anchor.toml",
-  "Cargo.toml",
-  "Cargo.lock",
-  "programs/lamports-vault/Cargo.toml",
-  "rust-toolchain.toml",
-];
+/**
+ * One profile per challenge.
+ *
+ * `program` is the directory under `programs/`. Every challenge repo in this
+ * course has the same shape — one Anchor program, a sealed canonical suite
+ * beside the learner's tests — so the file lists are derived from it rather
+ * than retyped. `extraLocked` / `extraEditable` are there for the repo that
+ * eventually does not fit.
+ */
+const PROFILES = {
+  "vault-limit": { program: "lamports-vault" },
+  "escrow-timelock": { program: "escrow" },
+  // "token22-identity": { program: "<dir under programs/>" },
+};
 
-// Paths a learner is allowed to change. This is an ALLOW-list: any file in the
-// fork that is neither locked nor matched here is a rejection, which is what
-// stops a new build.rs or .cargo/config.toml from changing the build.
-const EDITABLE = [
-  // Identity, not code. The learner writes their wallet address here and the
-  // submissions route reads it to decide whose fork this is, so it MUST be
-  // editable — pinning it would make every submission fail.
-  "wallet-pubkey",
-  "programs/lamports-vault/src/**",
-  "programs/lamports-vault/tests/common/**",
-  "programs/lamports-vault/tests/test_*.rs",
-  "README.md",
-  ".gitignore",
-  ".gitattributes",
-  "package.json",
-  "tsconfig.json",
-  "yarn.lock",
-  "migrations/**",
-];
+/** Files whose contents decide the grade. Must be byte-identical in a fork. */
+function lockedFor({ program, extraLocked = [] }) {
+  return [
+    ".github/workflows/verify.yml",
+    "grader/grade.py",
+    `programs/${program}/tests/canonical.rs`,
+    "Anchor.toml",
+    "Cargo.toml",
+    "Cargo.lock",
+    `programs/${program}/Cargo.toml`,
+    "rust-toolchain.toml",
+    ...extraLocked,
+  ];
+}
 
-const [, , repo, ref = "main", challengeId = "CHALLENGE_ID"] = process.argv;
+/**
+ * Paths a learner may change. This is an ALLOW-list: any file in the fork that
+ * is neither locked nor matched here is a rejection, which is what stops a new
+ * build.rs or .cargo/config.toml from changing what `anchor build` produces.
+ *
+ * Note `tests/test_*.rs` rather than `tests/**`. The canonical suite is locked
+ * either way, but a narrow glob means a learner cannot park a second copy of
+ * anything in there and have it treated as ordinary coursework.
+ */
+function editableFor({ program, extraEditable = [] }) {
+  return [
+    // Identity, not code. The learner writes their wallet address here and the
+    // submissions route reads it to decide whose fork this is, so it MUST be
+    // editable — pinning it would make every submission fail.
+    "wallet-pubkey",
+    `programs/${program}/src/**`,
+    `programs/${program}/tests/common/**`,
+    `programs/${program}/tests/test_*.rs`,
+    "README.md",
+    ".gitignore",
+    ".gitattributes",
+    "package.json",
+    "tsconfig.json",
+    "yarn.lock",
+    "migrations/**",
+    ...extraEditable,
+  ];
+}
 
-if (!repo || !repo.includes("/")) {
+const [, , repo, ref = "main", challengeId] = process.argv;
+
+function usage(msg) {
+  if (msg) console.error(msg + "\n");
   console.error(
-    "usage: node scripts/gen-manifest.mjs <owner>/<repo> [ref] [challenge-id]"
+    "usage: node scripts/gen-manifest.mjs <owner>/<repo> <ref> <challenge-id>\n"
   );
+  console.error("known challenge ids:");
+  for (const [id, p] of Object.entries(PROFILES)) {
+    console.error(`  ${id.padEnd(20)} programs/${p.program}`);
+  }
   process.exit(1);
 }
+
+if (!repo || !repo.includes("/")) usage();
+if (!challengeId) {
+  usage("Missing challenge id. It selects which file list to pin.");
+}
+
+const profile = PROFILES[challengeId];
+if (!profile) {
+  usage(`No profile for ${JSON.stringify(challengeId)}.`);
+}
+
+const LOCKED = lockedFor(profile);
+const EDITABLE = editableFor(profile);
 
 const headers = {
   accept: "application/vnd.github+json",
@@ -92,10 +141,22 @@ for (const path of LOCKED) {
 }
 
 if (missing.length) {
-  console.error("Not in the upstream repo yet:");
+  console.error(`Not in ${repo}@${ref} yet:`);
   for (const m of missing) console.error(`  ${m}`);
   console.error("\nInstall the grading layer first, then re-run this.");
   process.exit(1);
+}
+
+// The learner file that binds a fork to a wallet. It is editable by design, so
+// it is not in LOCKED and its absence is not caught above — but a fork that
+// never inherits it makes check 3 fail for every honest submission.
+if (!blobs.has("wallet-pubkey")) {
+  console.error(
+    `!! ${repo}@${ref} has no wallet-pubkey file.\n` +
+      "   Forks inherit it from the upstream, and /api/submissions rejects any\n" +
+      "   submission whose fork does not have one. Add it before going live:\n" +
+      "     printf 'REPLACE_ME\\n' > wallet-pubkey\n"
+  );
 }
 
 // Same allow-list the submissions route applies, run here so drift between
@@ -120,7 +181,7 @@ const entry = { version: 1, locked, editable: EDITABLE };
 
 console.log(`// ${repo} @ ${ref} — generated ${new Date().toISOString()}`);
 console.log(`${JSON.stringify(challengeId)}: ${JSON.stringify(entry, null, 2)},`);
-console.error(`\n${Object.keys(locked).length} files pinned.`);
+console.error(`\n${Object.keys(locked).length} files pinned for ${challengeId}.`);
 
 if (uncovered.length) {
   console.error(
@@ -128,7 +189,9 @@ if (uncovered.length) {
   );
   console.error("   Every submission will be rejected as an unexpected file:");
   for (const u of uncovered) console.error(`     ${u}`);
-  console.error("   Add each to LOCKED or EDITABLE above, then re-run.");
+  console.error(
+    "   Add each to the profile's extraLocked/extraEditable above, then re-run."
+  );
   process.exit(2);
 }
 

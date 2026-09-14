@@ -58,8 +58,34 @@ export const MANIFESTS: Record<string, Manifest> = {
       ],
     },
 
-  // "escrow-timelock":  … add when that repo has a grading layer
-  // "token22-identity": … same
+  // JavierBonill4/solana-summer-escrow @ main — generated 2026-09-14T03:22:55.364Z
+    "escrow-timelock": {
+      "version": 1,
+      "locked": {
+        ".github/workflows/verify.yml": "f61bfe1b6bee67363559ad3f9a26b1514f8e6a78",
+        "grader/grade.py": "3f11f59a4e199bc187f7a5d35db551a4b8d04704",
+        "programs/escrow/tests/canonical.rs": "bdf3a6f2c79151c33d6763cc526cc5b408d1527b",
+        "Anchor.toml": "bf37cefb0ff8c1c8b3e914d7430efd10576d77f7",
+        "Cargo.toml": "f397704811733aec712c2e03e7a6f671c81c2f6b",
+        "Cargo.lock": "0979ce7d5bc6923825c41c7c828f05a27cdc4bc5",
+        "programs/escrow/Cargo.toml": "dc60bcdb9c15914cb331cfabb07726a1c5e897e6",
+        "rust-toolchain.toml": "cb684c012375408adedaca62213299cfe861f723"
+      },
+      "editable": [
+        "wallet-pubkey",
+        "programs/escrow/src/**",
+        "programs/escrow/tests/common/**",
+        "programs/escrow/tests/test_*.rs",
+        "README.md",
+        ".gitignore",
+        ".gitattributes",
+        "package.json",
+        "tsconfig.json",
+        "yarn.lock",
+        "migrations/**"
+      ]
+    },
+  // "token22-identity": add when doing grading level
 };
 
 export function getManifest(challengeId: string): Manifest | null {

@@ -39,7 +39,7 @@ export const CHALLENGES: Challenge[] = [
     stack: "Anchor 1.0 · SPL Token",
     checkpoints: 9,
     tutorialUrl: "https://solana-escrow-tutorial.vercel.app/",
-    repoFullName: "ASCorreia/solana-summer-escrow",
+    repoFullName: "javierbonill4/solana-summer-escrow",
     pointsCanonical: 100,
     pointsMutation: 60,
     mutationEnabled: false,

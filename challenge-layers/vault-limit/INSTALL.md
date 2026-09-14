@@ -61,7 +61,7 @@ deliberate: it stops "mutant m4f2ab dies to the boundary test" circulating.
 From the Next.js app:
 
 ```
-GITHUB_TOKEN=ghp_… node scripts/gen-manifest.mjs <you>/solana-fall-vault main
+GITHUB_TOKEN=ghp_… node scripts/gen-manifest.mjs <you>/solana-summer-vault main vault-limit
 ```
 
 Paste the output into `MANIFESTS` in `lib/manifests.ts` under the key
