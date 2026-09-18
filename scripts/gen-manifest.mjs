@@ -75,6 +75,17 @@ function editableFor({ program, extraEditable = [] }) {
   ];
 }
 
+/**
+ * Where a learner is expected to do the work.
+ *
+ * The upstream's blob SHAs for these paths become the manifest's `baseline`,
+ * which is how the submissions route decides whether a fork contains any work
+ * at all. It is not an integrity check — these files are supposed to change.
+ */
+function sourceGlobsFor({ program }) {
+  return [`programs/${program}/src/**`, `programs/${program}/tests/**`];
+}
+
 const [, , repo, ref = "main", challengeId] = process.argv;
 
 function usage(msg) {
@@ -177,11 +188,31 @@ const uncovered = [...blobs.keys()].filter(
   (p) => !LOCKED.includes(p) && !EDITABLE.some((g) => matchesGlob(p, g))
 );
 
-const entry = { version: 1, locked, editable: EDITABLE };
+// The upstream's own source, for attempt credit. Locked files are left out:
+// they can never differ, so listing them here would be noise.
+const SOURCE = sourceGlobsFor(profile);
+const baseline = {};
+for (const [path, sha] of blobs) {
+  if (LOCKED.includes(path)) continue;
+  if (SOURCE.some((g) => matchesGlob(path, g))) baseline[path] = sha;
+}
+
+if (Object.keys(baseline).length === 0) {
+  console.error(
+    `!! No source files matched ${SOURCE.join(", ")}.\n` +
+      "   The manifest will carry no baseline, so this challenge awards no\n" +
+      "   attempt credit. Check the program directory in the profile."
+  );
+}
+
+const entry = { version: 1, locked, editable: EDITABLE, baseline };
 
 console.log(`// ${repo} @ ${ref} — generated ${new Date().toISOString()}`);
 console.log(`${JSON.stringify(challengeId)}: ${JSON.stringify(entry, null, 2)},`);
-console.error(`\n${Object.keys(locked).length} files pinned for ${challengeId}.`);
+console.error(
+  `\n${Object.keys(locked).length} files pinned, ` +
+    `${Object.keys(baseline).length} source files baselined for ${challengeId}.`
+);
 
 if (uncovered.length) {
   console.error(

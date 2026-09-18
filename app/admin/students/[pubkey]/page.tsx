@@ -69,6 +69,11 @@ export default async function StudentPage({
         <p className="inline-note" style={{ marginTop: 18 }}>
           <Link href="/admin/students">← All students</Link>
         </p>
+
+        <p className="inline-note" style={{ marginTop: 10, color: "var(--ink-2)" }}>
+          An amber half-ring means the fork is theirs and the source has moved
+          from the upstream, but it does not grade yet — real work, not a pass.
+        </p>
       </header>
 
       <section className="block">
@@ -92,11 +97,20 @@ export default async function StudentPage({
                   {sub ? (
                     <div className="pf-detail">
                       <span>
-                        <span className="k">Canonical</span>
-                        <span className="mono">
-                          {sub.canonicalPassed ?? "—"}/{sub.canonicalTotal ?? "—"}
-                        </span>
+                        <span className="k">Attempts</span>
+                        <span className="mono">{sub.attempts ?? 1}</span>
                       </span>
+                      {/* A submission that never reached the grader has no
+                          canonical figures, and "—/—" reads as a broken
+                          number rather than as "the suite did not run". */}
+                      {sub.canonicalTotal != null && (
+                        <span>
+                          <span className="k">Canonical</span>
+                          <span className="mono">
+                            {sub.canonicalPassed ?? 0}/{sub.canonicalTotal}
+                          </span>
+                        </span>
+                      )}
                       {!!sub.mutantsTotal && (
                         <span>
                           <span className="k">Mutants killed</span>
@@ -116,6 +130,14 @@ export default async function StudentPage({
                           CI run →
                         </a>
                       )}
+                      <span>
+                        <span className="k">Last</span>
+                        <span className="mono">
+                          {sub.submittedAt
+                            ? sub.submittedAt.slice(0, 10)
+                            : "—"}
+                        </span>
+                      </span>
                       {sub.reason && sub.status !== "passed" && (
                         <span style={{ width: "100%", color: "var(--ink-2)" }}>
                           {sub.reason}

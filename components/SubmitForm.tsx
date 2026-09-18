@@ -108,6 +108,10 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
   const ok = outcome?.status === "passed";
   const running = outcome?.status === "running";
   const pending = outcome?.status === "pending";
+  // Not graded, but the fork is theirs and the source has moved: real work,
+  // and it is paid for. Rendering it as a plain rejection is the fastest way
+  // to make somebody who is genuinely trying think the site is broken.
+  const attempted = outcome?.status === "attempted";
 
   return (
     <form className="panel" onSubmit={submit}>
@@ -165,9 +169,18 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
                 ? "Submission in progress"
                 : pending
                   ? "Verified, not yet scored"
-                  : "Rejected"}
+                  : attempted
+                    ? "Attempted — not graded yet"
+                    : "Rejected"}
           </span>
           <p>{outcome.reason ?? outcome.note ?? "Done."}</p>
+          {attempted && (
+            <p style={{ marginTop: 6 }}>
+              {outcome.pointsAwarded
+                ? `Your work counts: +${outcome.pointsAwarded} points for starting this assignment.`
+                : "Attempt credit for this assignment has already been awarded."}
+            </p>
+          )}
           {running && (
             <p className="lbl" style={{ marginTop: 8 }}>
               You can leave this page open — it keeps checking. Closing it only

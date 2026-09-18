@@ -42,7 +42,7 @@ export const submissions = pgTable(
     // GitHub run ids are ~3.4e10 and climbing — int4 would overflow.
     runId: bigint("run_id", { mode: "number" }),
     runUrl: text("run_url"),
-    // 'pending' | 'passed' | 'failed' | 'rejected'
+    // 'pending' | 'passed' | 'attempted' | 'failed' | 'rejected'
     status: text("status").notNull().default("pending"),
     canonicalPassed: integer("canonical_passed"),
     canonicalTotal: integer("canonical_total"),
@@ -99,7 +99,7 @@ export const pointsLedger = pgTable(
       .notNull()
       .references(() => users.pubkey),
     delta: integer("delta").notNull(),
-    // 'canonical' | 'mutation' | 'sidequest' | 'first-blood' | 'revoked'
+    // 'attempt' | 'canonical' | 'mutation' | 'sidequest' | 'first-blood' | 'revoked'
     reason: text("reason").notNull(),
     challengeId: text("challenge_id"),
     questId: text("quest_id"),

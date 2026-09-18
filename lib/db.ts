@@ -92,11 +92,29 @@ export async function getSubmissions(pubkey: string): Promise<Submission[]> {
     .where(eq(submissions.userPubkey, pubkey))
     .orderBy(desc(submissions.createdAt));
 
-  // One row per challenge: the most recent submission wins.
-  const latest = new Map<string, (typeof rows)[number]>();
-  for (const r of rows) if (!latest.has(r.challengeId)) latest.set(r.challengeId, r);
+  // One row per challenge: the BEST standing wins, not the most recent.
+  //
+  // Latest-wins meant a learner who passed and then pushed an experiment lost
+  // their green check while keeping the points, so the portfolio disagreed
+  // with the ledger. Rows arrive newest-first, so a strict > keeps the newest
+  // of an equal pair.
+  const RANK: Record<string, number> = {
+    passed: 4,
+    attempted: 3,
+    pending: 2,
+    failed: 1,
+  };
+  const best = new Map<string, (typeof rows)[number]>();
+  const attempts = new Map<string, number>();
+  for (const r of rows) {
+    attempts.set(r.challengeId, (attempts.get(r.challengeId) ?? 0) + 1);
+    const held = best.get(r.challengeId);
+    if (!held || (RANK[r.status] ?? 0) > (RANK[held.status] ?? 0)) {
+      best.set(r.challengeId, r);
+    }
+  }
 
-  return [...latest.values()].map((r) => ({
+  return [...best.values()].map((r) => ({
     challengeId: r.challengeId,
     status: r.status as SubmissionStatus,
     commitSha: r.commitSha,
@@ -108,6 +126,7 @@ export async function getSubmissions(pubkey: string): Promise<Submission[]> {
     pointsAwarded: r.pointsAwarded,
     reason: r.reason ?? undefined,
     submittedAt: r.createdAt.toISOString(),
+    attempts: attempts.get(r.challengeId) ?? 1,
   }));
 }
 
@@ -184,6 +203,9 @@ export async function recordSubmission(input: {
         canonicalTotal: input.canonicalTotal,
         mutantsKilled: input.mutantsKilled,
         mutantsTotal: input.mutantsTotal,
+        // Was missing: a row that earned attempt credit on a resubmission
+        // showed 0 points on the portfolio while the ledger said otherwise.
+        pointsAwarded: input.pointsAwarded ?? 0,
         reason: input.reason,
         resultJson: input.resultJson ? JSON.stringify(input.resultJson) : null,
         createdAt: new Date(),
@@ -652,7 +674,13 @@ export async function listStudents() {
       ...p,
       createdAt: p.createdAt.toISOString(),
       passed: subs.filter((s) => s.status === "passed").length,
+      // Anyone who has real work in a fork, whether or not it grades.
+      started: subs.filter(
+        (s) => s.status === "passed" || s.status === "attempted"
+      ).length,
       submitted: subs.length,
+      lastSubmittedAt:
+        subs.map((s) => s.submittedAt ?? "").sort().pop() || null,
       attended: attended.length,
       points: await getPoints(p.pubkey),
     });

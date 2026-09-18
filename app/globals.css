@@ -1017,6 +1017,12 @@ tr.me td.figure {
   background: var(--warn-soft);
   color: var(--warn);
 }
+/* Real work that does not grade yet. Amber, like pending, but outlined —
+   pending is transient, attempted is a standing state. */
+.mark.attempted {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
 .chal .node.pending {
   background: var(--warn);
   border-color: var(--warn);

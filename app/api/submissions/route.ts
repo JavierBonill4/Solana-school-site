@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/session";
 import { getChallenge } from "@/lib/challenges";
-import { getManifest, matchesGlob } from "@/lib/manifests";
+import { getManifest, matchesGlob, sourceChanged } from "@/lib/manifests";
 import bs58 from "bs58";
 import {
   getFileAtRef,
@@ -21,7 +21,7 @@ import {
   recordSubmission,
 } from "@/lib/db";
 import { readGraderResult } from "@/lib/grader-result";
-import { scoreSubmission } from "@/lib/points";
+import { ATTEMPT_POINTS, ledgerDeltas, scoreSubmission } from "@/lib/points";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +33,21 @@ interface Body {
   commitSha?: string;
 }
 
+/**
+ * Carried through the checks so a rejection downstream still knows whether
+ * attempt credit was earned upstream of it.
+ */
+interface Ctx {
+  pubkey: string;
+  challengeId: string;
+  repoFullName: string;
+  commitSha: string;
+  /** Checks 1-4 passed and the source differs from the upstream baseline. */
+  attempted?: boolean;
+  /** What was actually written to the ledger just now, which may be 0. */
+  attemptDelta?: number;
+}
+
 function reject(reason: string, status = 400) {
   return NextResponse.json({ status: "rejected", reason }, { status });
 }
@@ -42,19 +57,35 @@ function reject(reason: string, status = 400) {
  * happened rather than nothing. A rejection is a real event worth keeping.
  */
 async function rejectAndRecord(
-  ctx: { pubkey: string; challengeId: string; repoFullName: string; commitSha: string },
+  ctx: Ctx,
   reason: string,
   status = 400
 ) {
+  // A rejection AFTER attempt credit was earned is not a failure with nothing
+  // to show for it. Keep the standing and the points; only the grade is
+  // missing.
   await recordSubmission({
     pubkey: ctx.pubkey,
     challengeId: ctx.challengeId,
     repoFullName: ctx.repoFullName,
     commitSha: ctx.commitSha,
-    status: "failed",
+    status: ctx.attempted ? "attempted" : "failed",
+    pointsAwarded: ctx.attempted ? ATTEMPT_POINTS : 0,
     reason,
   });
-  return NextResponse.json({ status: "rejected", reason }, { status });
+  return NextResponse.json(
+    {
+      status: ctx.attempted ? "attempted" : "rejected",
+      reason,
+      ...(ctx.attempted
+        ? {
+            pointsAwarded: ctx.attemptDelta,
+            note: `Not graded yet, but the work counts: ${ATTEMPT_POINTS} points for this challenge.`,
+          }
+        : {}),
+    },
+    { status }
+  );
 }
 
 /**
@@ -101,12 +132,7 @@ export async function POST(req: Request) {
     return reject("That does not look like a commit SHA.");
   }
 
-  const ctx: {
-    pubkey: string;
-    challengeId: string;
-    repoFullName: string;
-    commitSha: string;
-  } = {
+  const ctx: Ctx = {
     pubkey: session.pubkey,
     challengeId,
     // Stored lower-case so "Owner/Repo" and "owner/repo" cannot become two
@@ -286,6 +312,39 @@ export async function POST(req: Request) {
     );
   }
 
+  // ── attempt credit ───────────────────────────────────────────────────
+  //
+  // Everything above this line is the integrity floor: the fork is a fork of
+  // ours, it is public, wallet-pubkey names THIS wallet, no other wallet has
+  // claimed it, and nothing sealed has moved. Only then does changed source
+  // mean anything — otherwise attempt credit would pay out for submitting a
+  // stranger's repo.
+  //
+  // This is attendance, not achievement. It is earned once per challenge and
+  // absorbed into the challenge total, so attempt-then-pass pays 20 then 80.
+  const changed = sourceChanged(blobs, manifest);
+
+  if (changed === null) {
+    // No baseline pinned. Not an error and not the learner's problem — say so
+    // in the log, award nothing, carry on grading.
+    console.warn(
+      `[submissions] ${challengeId} has no baseline in lib/manifests.ts, so ` +
+        `attempt credit cannot be computed. Re-run scripts/gen-manifest.mjs.`
+    );
+  } else if (changed) {
+    ctx.attempted = true;
+    const awarded = await getAwardedForChallenge(session.pubkey, challengeId);
+    ctx.attemptDelta = Math.max(0, ATTEMPT_POINTS - awarded);
+    if (ctx.attemptDelta > 0) {
+      await appendLedger({
+        pubkey: session.pubkey,
+        delta: ctx.attemptDelta,
+        reason: "attempt",
+        challengeId,
+      });
+    }
+  }
+
   // 5 — a successful run of OUR workflow at this commit.
   const runs = await getRunsForSha(repoFullName, ctx.commitSha);
   const graderRuns = runs.filter((r) => r.path === WORKFLOW_PATH);
@@ -313,6 +372,7 @@ export async function POST(req: Request) {
         runId: latest.id,
         runUrl: latest.html_url,
         status: "pending",
+        pointsAwarded: ctx.attempted ? ATTEMPT_POINTS : 0,
         reason: `The grader is ${latest.status.replace("_", " ")}.`,
       });
       return NextResponse.json({
@@ -426,33 +486,17 @@ export async function POST(req: Request) {
     resultJson: result,
   });
 
-  if (delta > 0) {
-    if (already === 0) {
-      // First pass: split the award so the ledger says what each half was for.
-      await appendLedger({
-        pubkey: session.pubkey,
-        delta: challenge.pointsCanonical,
-        reason: "canonical",
-        challengeId,
-      });
-      const bonus = points - challenge.pointsCanonical;
-      if (bonus > 0) {
-        await appendLedger({
-          pubkey: session.pubkey,
-          delta: bonus,
-          reason: "mutation",
-          challengeId,
-        });
-      }
-    } else {
-      // Canonical is binary, so any later increase is a better kill rate.
-      await appendLedger({
-        pubkey: session.pubkey,
-        delta,
-        reason: "mutation",
-        challengeId,
-      });
-    }
+  // Split the award by what each part was for. `already` may include attempt
+  // credit paid earlier in THIS request, which is why the split is computed
+  // rather than branched on `already === 0`: somebody going straight from 20
+  // to a pass is owed 80 under "canonical", not 80 under "mutation".
+  for (const row of ledgerDeltas(points, already, challenge.pointsCanonical)) {
+    await appendLedger({
+      pubkey: session.pubkey,
+      delta: row.delta,
+      reason: row.reason,
+      challengeId,
+    });
   }
 
   return NextResponse.json({
@@ -461,10 +505,13 @@ export async function POST(req: Request) {
     commitSha: ctx.commitSha,
     canonical: { passed, total },
     mutation: { killed, total: mutantsTotal },
-    pointsAwarded: delta > 0 ? delta : 0,
+    // Attempt credit may have been written moments ago in this same request,
+    // in which case `already` has grown and `delta` alone understates what
+    // this submission actually paid.
+    pointsAwarded: Math.max(0, delta) + (ctx.attemptDelta ?? 0),
     note:
       delta > 0
-        ? `${summary}. +${delta} points.`
+        ? `${summary}. +${Math.max(0, delta) + (ctx.attemptDelta ?? 0)} points.`
         : `${summary}. No new points — you have already been awarded ${already} for this challenge.`,
   });
 }

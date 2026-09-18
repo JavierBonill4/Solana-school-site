@@ -1,4 +1,14 @@
-export type SubmissionStatus = "passed" | "failed" | "pending" | "none";
+/**
+ * `attempted` sits between failed and passed: the fork is provably theirs and
+ * the source has diverged from upstream, but it does not grade yet. It earns
+ * ATTEMPT_POINTS and shows as an amber half-ring.
+ */
+export type SubmissionStatus =
+  | "passed"
+  | "attempted"
+  | "failed"
+  | "pending"
+  | "none";
 
 export interface Challenge {
   id: string;
@@ -34,9 +44,11 @@ export interface Submission {
   mutantsKilled?: number;
   mutantsTotal?: number;
   pointsAwarded: number;
-  /** Why it failed, in the learner's words. Only set when status is "failed". */
+  /** Why it failed, in the learner's words. Not set when status is "passed". */
   reason?: string;
   submittedAt?: string;
+  /** How many commits have been submitted for this challenge, ever. */
+  attempts?: number;
 }
 
 export type SideQuestState =

@@ -96,11 +96,17 @@ export function PortfolioList() {
                     )}
                   </div>
 
-                  {sub.status === "failed" && sub.reason && (
-                    <p className="pf-reason">
-                      <strong>Why it failed.</strong> {sub.reason}
-                    </p>
-                  )}
+                  {(sub.status === "failed" || sub.status === "attempted") &&
+                    sub.reason && (
+                      <p className="pf-reason">
+                        <strong>
+                          {sub.status === "attempted"
+                            ? "Counted, not graded."
+                            : "Why it failed."}
+                        </strong>{" "}
+                        {sub.reason}
+                      </p>
+                    )}
                 </>
               )}
 

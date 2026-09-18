@@ -132,6 +132,36 @@ is unpinned.
 
 ---
 
+## Attempt credit
+
+Not every submission is a pass, and a course needs to know who has *started*.
+So the checks above have a floor in them.
+
+Checks 1–4 — fork lineage, visibility, `wallet-pubkey`, and the sealed-file
+allow-list — are the integrity floor. They prove the fork is this person's and
+that nothing that decides a grade has moved. Once those pass, the route asks
+one more question: **does the program source differ from the upstream it was
+forked from?** The manifest carries the upstream's own blob SHA for every file
+under `programs/<program>/src/` and `programs/<program>/tests/`, so answering
+it costs nothing — the tree was already read for check 4.
+
+If it does, the submission is recorded as `attempted` and earns 20 points,
+once per challenge. The grade still has to be earned the hard way; this is
+just the difference between "has not started" and "is working on it".
+
+Three things make that honest rather than free money:
+
+- It sits **after** the integrity floor, so it cannot be earned by submitting a
+  stranger's fork — `wallet-pubkey` in that repo names a different wallet.
+- It is **absorbed**, not added: attempt then pass pays 20 then 80, never 120.
+  The advertised ceiling stays true.
+- It is **capped and small** — 20 × 3 assignments is 60 of 380 available. Enough
+  to show on a roster, not enough to move anyone up the leaderboard.
+
+It is also, deliberately, easy: change a line, push, submit. Someone gaming it
+has forked the repo, bound it to their wallet, and edited the program. That is
+the behaviour the credit is meant to measure.
+
 ## Points
 
 Awards go through an append-only ledger as deltas, and the delta is

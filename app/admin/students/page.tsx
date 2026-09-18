@@ -24,7 +24,9 @@ export default async function StudentsPage() {
         <h1>Everyone who has connected.</h1>
         <p className="deck">
           A row appears the first time a wallet signs in. A blank name means
-          they have not set one — profiles are optional.
+          they have not set one — profiles are optional. <b>Started</b> counts
+          assignments where the fork is theirs and the source has moved from
+          the upstream, whether or not it grades.
         </p>
       </header>
 
@@ -42,8 +44,10 @@ export default async function StudentsPage() {
                   <th>Name</th>
                   <th>Wallet</th>
                   <th>GitHub</th>
+                  <th className="right">Started</th>
                   <th className="right">Passed</th>
                   <th className="right">Attended</th>
+                  <th className="right">Last seen</th>
                   <th className="right">Points</th>
                 </tr>
               </thead>
@@ -62,9 +66,15 @@ export default async function StudentsPage() {
                       {s.githubLogin ?? "—"}
                     </td>
                     <td className="figure right">
+                      {s.started} of {CHALLENGES.length}
+                    </td>
+                    <td className="figure right">
                       {s.passed} of {CHALLENGES.length}
                     </td>
                     <td className="figure right">{s.attended}</td>
+                    <td className="figure right" style={{ fontSize: ".82rem" }}>
+                      {s.lastSubmittedAt ? s.lastSubmittedAt.slice(0, 10) : "—"}
+                    </td>
                     <td className="figure right">{s.points}</td>
                   </tr>
                 ))}
