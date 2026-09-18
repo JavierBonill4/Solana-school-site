@@ -22,6 +22,13 @@ import type {
 } from "./types";
 import { CHALLENGES } from "./challenges";
 import { normalizeName } from "./attendance";
+import {
+  EMPTY_NAMES,
+  matchableNames,
+  resolveDisplayName,
+  type NameSource,
+  type Names,
+} from "./names";
 
 /**
  * The only file that talks to the database.
@@ -434,8 +441,9 @@ export async function consumeNonce(nonce: string): Promise<boolean> {
 
 // ── profiles ─────────────────────────────────────────────────────────────
 
-export interface Profile {
+export interface Profile extends Names {
   pubkey: string;
+  /** Derived from the four names and the chosen source. Read-only. */
   displayName: string | null;
   githubLogin: string | null;
 }
@@ -446,18 +454,53 @@ export async function getProfile(pubkey: string): Promise<Profile> {
       pubkey: users.pubkey,
       displayName: users.displayName,
       githubLogin: users.githubLogin,
+      preferredName: users.preferredName,
+      discordName: users.discordName,
+      lumaName: users.lumaName,
+      meetName: users.meetName,
+      displayNameSource: users.displayNameSource,
     })
     .from(users)
     .where(eq(users.pubkey, pubkey));
-  return row ?? { pubkey, displayName: null, githubLogin: null };
+
+  if (!row) {
+    return { pubkey, displayName: null, githubLogin: null, ...EMPTY_NAMES };
+  }
+  return {
+    ...row,
+    displayNameSource: row.displayNameSource as NameSource,
+  };
 }
 
-export async function setDisplayName(
+/**
+ * Write all four names and the chosen source.
+ *
+ * `display_name` is rewritten from them in the same statement. It is the only
+ * place that column is set, which is what keeps a derived column honest —
+ * every other query in this file can go on selecting it.
+ */
+export async function setProfileNames(
   pubkey: string,
-  displayName: string | null
+  input: Names
 ): Promise<void> {
   await ensureUser(pubkey);
-  await db().update(users).set({ displayName }).where(eq(users.pubkey, pubkey));
+
+  const clean = (v: string | null) => {
+    const t = (v ?? "").trim();
+    return t.length > 0 ? t : null;
+  };
+  const names: Names = {
+    preferredName: clean(input.preferredName),
+    discordName: clean(input.discordName),
+    lumaName: clean(input.lumaName),
+    meetName: clean(input.meetName),
+    displayNameSource: input.displayNameSource,
+  };
+
+  await db()
+    .update(users)
+    .set({ ...names, displayName: resolveDisplayName(names) })
+    .where(eq(users.pubkey, pubkey));
 }
 
 /**
@@ -532,7 +575,15 @@ export async function createAttendanceSession(input: {
   return { sessionId, total: input.names.length, matched };
 }
 
-/** normalized name -> pubkey, from aliases, display names and GitHub logins. */
+/**
+ * normalized name -> pubkey.
+ *
+ * Written weakest-first so the strongest signal wins a collision: a GitHub
+ * login is the weakest (it is a handle, not a name), and the Google Meet name
+ * is the strongest, because it is literally the string that appears in the
+ * roster being imported. Aliases go last of all — those are decisions a human
+ * already made, and nothing inferred should overrule them.
+ */
 async function buildNameLookup(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
 
@@ -541,12 +592,26 @@ async function buildNameLookup(): Promise<Map<string, string>> {
       pubkey: users.pubkey,
       displayName: users.displayName,
       githubLogin: users.githubLogin,
+      preferredName: users.preferredName,
+      discordName: users.discordName,
+      lumaName: users.lumaName,
+      meetName: users.meetName,
+      displayNameSource: users.displayNameSource,
     })
     .from(users);
 
   for (const p of people) {
     if (p.githubLogin) map.set(normalizeName(p.githubLogin), p.pubkey);
-    if (p.displayName) map.set(normalizeName(p.displayName), p.pubkey);
+    const names: Names = {
+      preferredName: p.preferredName,
+      discordName: p.discordName,
+      lumaName: p.lumaName,
+      meetName: p.meetName,
+      displayNameSource: p.displayNameSource as NameSource,
+    };
+    for (const { value } of matchableNames(names, [p.displayName])) {
+      map.set(normalizeName(value), p.pubkey);
+    }
   }
 
   // Aliases are explicit human decisions, so they win over inferred matches.
@@ -593,6 +658,81 @@ export async function countAttendanceSessions(): Promise<number> {
     .select({ id: attendanceSessions.id })
     .from(attendanceSessions);
   return rows.length;
+}
+
+/**
+ * Change the date or the label on a roster already imported.
+ *
+ * The file and its names are untouched — this is for the upload where the
+ * date was wrong, which is most of them.
+ */
+export async function updateAttendanceSession(
+  sessionId: string,
+  patch: { heldOn?: string; label?: string | null }
+): Promise<boolean> {
+  const set: Record<string, unknown> = {};
+  if (patch.heldOn !== undefined) set.heldOn = patch.heldOn;
+  if (patch.label !== undefined) set.label = patch.label;
+  if (Object.keys(set).length === 0) return false;
+
+  const rows = await db()
+    .update(attendanceSessions)
+    .set(set)
+    .where(eq(attendanceSessions.id, sessionId))
+    .returning({ id: attendanceSessions.id });
+  return rows.length > 0;
+}
+
+/**
+ * Remove a roster and every record in it.
+ *
+ * attendance_records cascades on the session's delete, so this takes the
+ * attendance credit with it — which is the point. Uploading the same file
+ * twice with two different dates is the mistake this exists to undo.
+ */
+export async function deleteAttendanceSession(sessionId: string): Promise<boolean> {
+  const rows = await db()
+    .delete(attendanceSessions)
+    .where(eq(attendanceSessions.id, sessionId))
+    .returning({ id: attendanceSessions.id });
+  return rows.length > 0;
+}
+
+/**
+ * Re-run the name lookup over the rows that are still unmatched.
+ *
+ * Most rosters are uploaded before everyone has filled in their Meet name, so
+ * without this every late arrival has to be linked by hand. Rows that already
+ * have a wallet are left alone: an existing link is either an earlier match
+ * or a human decision, and neither should be silently rewritten.
+ */
+export async function rematchAttendanceSession(
+  sessionId: string
+): Promise<{ matched: number; remaining: number }> {
+  const rows = await db()
+    .select({ id: attendanceRecords.id, rawName: attendanceRecords.rawName })
+    .from(attendanceRecords)
+    .where(
+      and(
+        eq(attendanceRecords.sessionId, sessionId),
+        isNull(attendanceRecords.userPubkey)
+      )
+    );
+
+  const lookup = await buildNameLookup();
+  let matched = 0;
+
+  for (const r of rows) {
+    const pubkey = lookup.get(normalizeName(r.rawName));
+    if (!pubkey) continue;
+    await db()
+      .update(attendanceRecords)
+      .set({ userPubkey: pubkey })
+      .where(eq(attendanceRecords.id, r.id));
+    matched += 1;
+  }
+
+  return { matched, remaining: rows.length - matched };
 }
 
 export async function getAttendanceSession(sessionId: string) {

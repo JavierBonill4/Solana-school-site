@@ -16,8 +16,30 @@ import {
 
 export const users = pgTable("users", {
   pubkey: text("pubkey").primaryKey(),
-  /** What a person calls themselves. Optional, set on /profile. */
+  /**
+   * DERIVED, not authoritative. The projection of (the four names below, the
+   * chosen source), rewritten by setProfileNames on every save so that every
+   * existing query selecting users.displayName keeps working.
+   *
+   * For accounts created before the four-name split it is the only name they
+   * have, which is why resolveDisplayName() takes it as a fallback rather
+   * than ignoring it.
+   */
   displayName: text("display_name"),
+  /** What they would like to be called. */
+  preferredName: text("preferred_name"),
+  /** Their handle in the course Discord. */
+  discordName: text("discord_name"),
+  /** The name they registered with on Luma. */
+  lumaName: text("luma_name"),
+  /**
+   * Exactly as it appears in the Google Meet participant list. This is the
+   * one attendance matches on, because it is the one that is actually in the
+   * roster being uploaded.
+   */
+  meetName: text("meet_name"),
+  /** 'preferred' | 'discord' | 'luma' | 'meet' — which one is public. */
+  displayNameSource: text("display_name_source").notNull().default("preferred"),
   /**
    * Filled in from the fork owner on a passing submission, not typed by the
    * learner — wallet-pubkey in that fork already proves the two belong

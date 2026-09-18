@@ -11,6 +11,7 @@ import {
 } from "@/lib/db";
 import { shortAddress } from "@/lib/points";
 import { StatusMark } from "@/components/StatusMark";
+import { NAME_LABELS, NAME_SOURCES, nameFor } from "@/lib/names";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -67,6 +68,29 @@ export default async function StudentPage({
             <span className="k">Points</span>
             <span className="mono">{points}</span>
           </span>
+        </div>
+
+        {/* Every name they have given us. When a roster row will not match,
+            this is the first place to look — usually the Meet name is blank
+            or spelled differently from the export. */}
+        <div className="pf-detail" style={{ marginTop: 12 }}>
+          {NAME_SOURCES.map((src) => {
+            const value = nameFor(profile, src);
+            return (
+              <span key={src}>
+                <span className="k">
+                  {NAME_LABELS[src]}
+                  {profile.displayNameSource === src ? " · shown" : ""}
+                </span>
+                <span
+                  className="mono"
+                  style={value ? undefined : { color: "var(--ink-2)" }}
+                >
+                  {value ?? "—"}
+                </span>
+              </span>
+            );
+          })}
         </div>
 
         <p className="inline-note" style={{ marginTop: 18 }}>

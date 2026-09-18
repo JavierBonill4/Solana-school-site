@@ -31,7 +31,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     # Grade forks, not the starter.
     #
@@ -69,11 +69,46 @@ jobs:
       - name: Create a throwaway keypair
         run: solana-keygen new --no-bip39-passphrase -s -o "$HOME/.config/solana/id.json"
 
-      - name: Install Anchor
+      # `cargo install avm` compiles avm from source — three to five minutes
+      # to build a version manager whose only job here is to fetch one binary
+      # we can fetch ourselves. Anchor has published prebuilt CLI binaries
+      # since 0.31, so take the binary directly.
+      #
+      # The checksum is pinned. On any failure — moved asset, re-cut release,
+      # unexpected bytes — it falls back to the slow path rather than failing
+      # the run, because a sealed workflow that breaks for a whole cohort when
+      # an upstream URL changes is worse than a slow one.
+      - name: Install Anchor 1.1.2
+        env:
+          ANCHOR_URL: https://github.com/solana-foundation/anchor/releases/download/v1.1.2/anchor-1.1.2-x86_64-unknown-linux-gnu
+          ANCHOR_SHA256: fdea9979629e9416e5f5e5622ff6c11b8c691d1e559581ece368e903c0c980c1
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-          avm install 1.1.2
-          avm use 1.1.2
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          ok=0
+          if curl -sSfL --retry 3 -o /tmp/anchor "$ANCHOR_URL"; then
+            if echo "$ANCHOR_SHA256  /tmp/anchor" | sha256sum -c - ; then
+              install -m 0755 /tmp/anchor "$HOME/.local/bin/anchor"
+              ok=1
+            else
+              echo "::warning::Anchor binary checksum did not match, building from source."
+            fi
+          else
+            echo "::warning::Could not download the Anchor binary, building from source."
+          fi
+          if [ "$ok" = "0" ]; then
+            cargo install --git https://github.com/solana-foundation/anchor avm --locked --force
+            avm install 1.1.2
+            avm use 1.1.2
+          fi
+
+      # cargo-build-sbf downloads the Solana platform-tools toolchain on its
+      # first run — a few hundred megabytes that are identical on every run.
+      - name: Cache Solana platform-tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/solana
+          key: solana-platform-tools-${{ runner.os }}
 
       - name: Install JS dependencies
         run: yarn install --frozen-lockfile || yarn install

@@ -100,10 +100,34 @@ check that the grader is wired up.
 Then from a second account: fork, put that wallet in `wallet-pubkey`, add a
 feature, push. Expect `Gates met: 4/4 · 100 points`.
 
-## The run is slow
+## How long a run takes
 
-45 minutes of timeout, and it will use a fair chunk of it: `avm install 1.1.2`
-builds Anchor from source, and `anchor test` starts a real validator. The cargo
-cache makes the second run much faster. This is the learner's own runner and
-their own free minutes, so slow is acceptable — but tell them, or the first
-submission looks hung.
+Roughly **8–14 minutes cold, 4–7 warm**, per fork.
+
+| Step | Cold | Warm | Why |
+|---|---|---|---|
+| Rust + Node setup | ~30s | ~30s | prebuilt |
+| Solana toolchain | 1–2 min | 1–2 min | prebuilt download, not cached by us |
+| Anchor 1.1.2 | ~20s | ~20s | prebuilt binary, checksum-pinned |
+| platform-tools | 1–2 min | ~0 | `actions/cache` on `~/.cache/solana` |
+| `yarn install` | ~1 min | ~1 min | |
+| `anchor build` | 4–7 min | 1–2 min | `Swatinem/rust-cache`; the SBF compile is the floor |
+| `anchor test` | 2–4 min | 2–4 min | real validator, three suites — this is the actual work |
+
+The caches are per-repository, so every learner pays the cold run once in their
+own fork. There is no way to warm a cache across forks: Actions caches are
+scoped to the repo, and a fork cannot read the upstream's on a `push` event.
+
+Two things worth telling learners:
+
+1. **The run starts on push, not on submit.** Push, go and do something else,
+   come back and submit — by then CI has usually finished and the site answers
+   immediately. Pushing and submitting in the same breath is what makes it feel
+   like the site is hanging. It is not: the submit form polls every 20 seconds
+   and says "Submission in progress" while it waits.
+2. **The first run in a fork is the slow one.** After that the cargo cache is
+   warm and it roughly halves.
+
+If it ever does get slower, the timeout is 30 minutes — enough headroom for a
+cold run on a bad day, and short enough that something genuinely stuck fails
+rather than sitting there.

@@ -10,6 +10,7 @@ import {
 import { shortAddress } from "@/lib/points";
 import { AttendanceUpload } from "@/components/AttendanceUpload";
 import { AttendanceMatch } from "@/components/AttendanceMatch";
+import { AttendanceSessionEdit } from "@/components/AttendanceSessionEdit";
 
 export const metadata: Metadata = { title: "Attendance · Admin" };
 export const dynamic = "force-dynamic";
@@ -48,9 +49,11 @@ export default async function AttendancePage({
         </div>
         <h1>Who was in the room.</h1>
         <p className="deck">
-          Upload the roster you already keep. Names are matched against display
-          names and GitHub logins; anything left over you link once, and it
-          matches itself from then on.
+          Upload the roster you already keep. Names are matched against the
+          Google Meet name each student sets on their profile — that is the one
+          that appears in a Meet export — then their other names and their
+          GitHub login. Anything left over you link once, and it matches itself
+          from then on.
         </p>
       </header>
 
@@ -90,6 +93,15 @@ export default async function AttendancePage({
                   ? ` · ${detail.session.sourceFilename}`
                   : ""}
               </p>
+
+              <AttendanceSessionEdit
+                sessionId={detail.session.id}
+                heldOn={detail.session.heldOn}
+                label={detail.session.label}
+                unmatched={
+                  detail.records.filter((r) => !r.userPubkey).length
+                }
+              />
 
               <div className="tbl-wrap">
                 <table>
