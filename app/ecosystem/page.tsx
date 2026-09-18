@@ -15,7 +15,7 @@ export default function EcosystemPage() {
         </div>
         <h1>Where to go after this.</h1>
         <p className="deck">
-          Three assignments will not make you a Solana engineer. These will get
+          Four assignments will not make you a Solana engineer. These will get
           you closer, and several of them pay.
         </p>
       </header>

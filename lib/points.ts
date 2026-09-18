@@ -12,8 +12,8 @@ export const MUTATION_FULL_CREDIT_AT = 0.8;
  * pays 20 then 80, never 120, so the advertised ceiling stays honest.
  *
  * This is attendance, not achievement. It is trivially earnable by anyone who
- * opens the repo and changes a line — which is the point. 20 × 3 challenges is
- * 60 of 380 available, enough to show who has started and not enough to move
+ * opens the repo and changes a line — which is the point. 20 × 4 challenges is
+ * 80 of 460 available, enough to show who has started and not enough to move
  * anyone up the leaderboard.
  */
 export const ATTEMPT_POINTS = 20;

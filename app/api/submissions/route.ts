@@ -288,7 +288,14 @@ export async function POST(req: Request) {
   for (const [pathname, expected] of Object.entries(manifest.locked)) {
     const entry = blobs.find((b) => b.path === pathname);
     if (!entry) {
-      return rejectAndRecord(ctx, `${pathname} is missing from your fork.`);
+      // With a cohort that forked before the grading layer existed, this is
+      // THE most common rejection, and "missing" on its own reads like the
+      // learner deleted something. Say what actually happened and how to fix
+      // it, including that GitHub's Sync fork button is not enough on its own.
+      return rejectAndRecord(
+        ctx,
+        `${pathname} is missing from your fork. Your fork was probably made before the grader was added — sync it with the upstream (GitHub's "Sync fork" button, or \`git pull upstream main\`), then push a commit of your own so CI runs.`
+      );
     }
     if (entry.sha !== expected) {
       return rejectAndRecord(
@@ -359,7 +366,7 @@ export async function POST(req: Request) {
     if (!latest) {
       return rejectAndRecord(
         ctx,
-        "No grader run exists for that commit. Either Actions is not enabled on your fork (open its Actions tab and click the button to enable workflows), or you have not pushed this commit yet."
+        "No grader run exists for that commit. Three things cause this: Actions is not enabled on your fork (open its Actions tab and click the button), you have not pushed this commit yet, or you synced your fork with GitHub's button — that merge does not trigger workflows, so push a commit of your own or run the workflow by hand from the Actions tab."
       );
     }
 

@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 export const metadata: Metadata = {
   title: "Solana Summer",
   description:
-    "Three Anchor challenges, graded two ways: our tests against your program, your tests against ours.",
+    "Four Anchor challenges, graded on what the code actually does — in your CI runner, never on our servers.",
 };
 
 export default function RootLayout({

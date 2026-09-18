@@ -3,6 +3,7 @@
 import { useSession } from "./Providers";
 import { shortAddress } from "@/lib/points";
 import type { LeaderboardRow } from "@/lib/types";
+import { CHALLENGES } from "@/lib/challenges";
 
 export function LeaderboardTable({
   rows,
@@ -47,7 +48,7 @@ export function LeaderboardTable({
             <tr key={r.pubkey} className={r.pubkey === profile?.pubkey ? "me" : ""}>
               <td className="rank">{r.rank}</td>
               <td className="mono">{shortAddress(r.pubkey, 5, 4)}</td>
-              <td className="figure">{r.challengesDone} of 3</td>
+              <td className="figure">{r.challengesDone} of {CHALLENGES.length}</td>
               <td className="figure">{r.sideQuestsDone}</td>
               <td className="figure right">{r.points}</td>
             </tr>
@@ -58,7 +59,8 @@ export function LeaderboardTable({
               <td className="rank">—</td>
               <td className="mono">{shortAddress(profile.pubkey, 5, 4)}</td>
               <td className="figure">
-                {profile.submissions.filter((s) => s.status === "passed").length} of 3
+                {profile.submissions.filter((s) => s.status === "passed").length} of{" "}
+                {CHALLENGES.length}
               </td>
               <td className="figure">
                 {profile.claims.filter((c) => c.state === "verified").length}

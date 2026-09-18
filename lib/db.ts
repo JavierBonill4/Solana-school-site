@@ -582,6 +582,19 @@ export async function listAttendanceSessions(): Promise<AttendanceSessionRow[]> 
   return out;
 }
 
+/**
+ * How many rosters have been uploaded. The denominator for "attended x of y".
+ *
+ * Counted rather than derived from listAttendanceSessions() so the students
+ * page does not load every record of every session to print one number.
+ */
+export async function countAttendanceSessions(): Promise<number> {
+  const rows = await db()
+    .select({ id: attendanceSessions.id })
+    .from(attendanceSessions);
+  return rows.length;
+}
+
 export async function getAttendanceSession(sessionId: string) {
   const [session] = await db()
     .select()
@@ -653,6 +666,7 @@ export async function matchAttendanceName(
 // ── students ─────────────────────────────────────────────────────────────
 
 export async function listStudents() {
+  const sessionCount = await countAttendanceSessions();
   const people = await db()
     .select({
       pubkey: users.pubkey,
@@ -682,6 +696,7 @@ export async function listStudents() {
       lastSubmittedAt:
         subs.map((s) => s.submittedAt ?? "").sort().pop() || null,
       attended: attended.length,
+      sessionCount,
       points: await getPoints(p.pubkey),
     });
   }

@@ -23,9 +23,10 @@ export default async function HomePage() {
           <span className="hi">catch you</span>.
         </h1>
         <p className="deck">
-          Three Anchor challenges, nine checkpoints each, graded two ways: our
-          tests run against your program, and your tests run against ours — the
-          broken ones. Connect a wallet, push a commit, collect the points.
+          Four Anchor challenges. The first three are graded two ways — our tests
+          run against your program, and your tests run against ours, the broken
+          ones. The last one has no answer key: you pick the feature. Connect a
+          wallet, push a commit, collect the points.
         </p>
       </header>
 
@@ -35,11 +36,12 @@ export default async function HomePage() {
             <span className="rule" />
             <span className="lbl">The track</span>
           </div>
-          <h2>Three assignments, in order.</h2>
+          <h2>Four assignments, in order.</h2>
           <p>
             Each starts from a repo that already works and asks you to add the
-            one thing it is missing. The tutorials are free — you do not need a
-            wallet to read them. To submit, push to your fork: CI grades it in
+            one thing it is missing — and the last one asks you to decide what
+            that thing is. The tutorials are free — you do not need a wallet to
+            read them. To submit, push to your fork: CI grades it in
             your own runner and we read the result, so your code never runs on
             our servers.
           </p>

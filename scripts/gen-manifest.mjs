@@ -29,10 +29,51 @@ const PROFILES = {
   "vault-limit": { program: "lamports-vault" },
   "escrow-timelock": { program: "escrow" },
   // "token22-identity": { program: "<dir under programs/>" },
+
+  // The fundraiser does not fit the derived shape, because the assignment is
+  // different in kind: there is no sealed canonical suite (nothing is
+  // canonical when the learner picks the feature), the tests are TypeScript at
+  // the repo root rather than Rust beside the program, and Anchor.toml has to
+  // stay editable because `anchor keys sync` rewrites it — the starter ships a
+  // declare_id! whose keypair it does not ship, so every learner runs it.
+  //
+  // What stays sealed is the part that decides the grade: the workflow, the
+  // grader, and the baseline surface it diffs against.
+  "fundraiser-feature": {
+    program: "fundraiser",
+    locked: [
+      ".github/workflows/verify.yml",
+      "grader/grade.py",
+      "grader/baseline.json",
+    ],
+    editable: [
+      "wallet-pubkey",
+      "programs/fundraiser/**",
+      "tests/**",
+      "migrations/**",
+      // Rewritten by `anchor keys sync`. Its [scripts] test line is therefore
+      // editable too, which is why grade.py overwrites that line with a pinned
+      // command before running the suite instead of trusting it.
+      "Anchor.toml",
+      "Cargo.toml",
+      "Cargo.lock",
+      // A feature may need a dependency — an NFT receipt needs Metaplex.
+      "package.json",
+      "yarn.lock",
+      "tsconfig.json",
+      "readme.MD",
+      "README.md",
+      ".gitignore",
+      ".gitattributes",
+      ".prettierignore",
+    ],
+    source: ["programs/fundraiser/src/**", "tests/**"],
+  },
 };
 
 /** Files whose contents decide the grade. Must be byte-identical in a fork. */
-function lockedFor({ program, extraLocked = [] }) {
+function lockedFor({ program, locked, extraLocked = [] }) {
+  if (locked) return [...locked, ...extraLocked];
   return [
     ".github/workflows/verify.yml",
     "grader/grade.py",
@@ -55,7 +96,8 @@ function lockedFor({ program, extraLocked = [] }) {
  * either way, but a narrow glob means a learner cannot park a second copy of
  * anything in there and have it treated as ordinary coursework.
  */
-function editableFor({ program, extraEditable = [] }) {
+function editableFor({ program, editable, extraEditable = [] }) {
+  if (editable) return [...editable, ...extraEditable];
   return [
     // Identity, not code. The learner writes their wallet address here and the
     // submissions route reads it to decide whose fork this is, so it MUST be
@@ -82,7 +124,8 @@ function editableFor({ program, extraEditable = [] }) {
  * which is how the submissions route decides whether a fork contains any work
  * at all. It is not an integrity check — these files are supposed to change.
  */
-function sourceGlobsFor({ program }) {
+function sourceGlobsFor({ program, source }) {
+  if (source) return source;
   return [`programs/${program}/src/**`, `programs/${program}/tests/**`];
 }
 

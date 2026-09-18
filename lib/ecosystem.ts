@@ -8,7 +8,7 @@ export const ECOSYSTEM: EcosystemGroup[] = [
   {
     heading: "Keep learning",
     intro:
-      "Three assignments is not a curriculum. These are the programs people move on to, and all of them are free.",
+      "Four assignments is not a curriculum. These are the programs people move on to, and all of them are free.",
     links: [
       {
         name: "Solana School",

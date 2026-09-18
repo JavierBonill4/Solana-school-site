@@ -71,7 +71,9 @@ export default async function StudentsPage() {
                     <td className="figure right">
                       {s.passed} of {CHALLENGES.length}
                     </td>
-                    <td className="figure right">{s.attended}</td>
+                    <td className="figure right">
+                      {s.attended} of {s.sessionCount}
+                    </td>
                     <td className="figure right" style={{ fontSize: ".82rem" }}>
                       {s.lastSubmittedAt ? s.lastSubmittedAt.slice(0, 10) : "—"}
                     </td>

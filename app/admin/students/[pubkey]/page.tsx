@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { isAdmin } from "@/lib/admin";
 import { CHALLENGES } from "@/lib/challenges";
 import {
+  countAttendanceSessions,
   getProfile,
   getPoints,
   getStudentAttendance,
@@ -22,12 +23,14 @@ export default async function StudentPage({
   if (!(await isAdmin())) notFound();
 
   const { pubkey } = await params;
-  const [profile, submissions, attendance, points] = await Promise.all([
-    getProfile(pubkey),
-    getSubmissions(pubkey),
-    getStudentAttendance(pubkey),
-    getPoints(pubkey),
-  ]);
+  const [profile, submissions, attendance, points, sessionCount] =
+    await Promise.all([
+      getProfile(pubkey),
+      getSubmissions(pubkey),
+      getStudentAttendance(pubkey),
+      getPoints(pubkey),
+      countAttendanceSessions(),
+    ]);
 
   const name = profile.displayName ?? shortAddress(pubkey, 6, 6);
 
@@ -166,12 +169,25 @@ export default async function StudentPage({
             <span className="rule" />
             <span className="lbl">Attendance</span>
           </div>
-          <h2>{attendance.length} session{attendance.length === 1 ? "" : "s"}</h2>
+          <h2>
+            {attendance.length} of {sessionCount} session
+            {sessionCount === 1 ? "" : "s"}
+          </h2>
+          {sessionCount > 0 && attendance.length < sessionCount && (
+            <p>
+              Missed {sessionCount - attendance.length}. A miss here can also
+              mean their name was spelled differently on that roster and never
+              linked — <Link href="/admin/attendance">check the rosters</Link>{" "}
+              before treating it as an absence.
+            </p>
+          )}
         </div>
 
         {attendance.length === 0 ? (
           <div className="empty">
-            <span className="lbl">No sessions</span>
+            <span className="lbl">
+              {sessionCount === 0 ? "No rosters uploaded" : "No sessions"}
+            </span>
             <p>
               This student has not been matched to any roster. If they attended,
               the name on that roster may still be unlinked —{" "}

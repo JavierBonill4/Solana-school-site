@@ -123,6 +123,48 @@ export const MANIFESTS: Record<string, Manifest> = {
       }
     },
   // "token22-identity": add when doing grading level
+  // JavierBonill4/anchor-fundraiser @ main — generated 2026-09-18T19:27:03.455Z
+    "fundraiser-feature": {
+      "version": 1,
+      "locked": {
+        ".github/workflows/verify.yml": "30f92d90fcbf4f74fd2af76d9487ad9075c08636",
+        "grader/grade.py": "6e5e1eea881bcc1a772458ac5b7330ca315c30d5",
+        "grader/baseline.json": "6f5aa12a958e3007989ed3a4b96d6890f78ebfab"
+      },
+      "editable": [
+        "wallet-pubkey",
+        "programs/fundraiser/**",
+        "tests/**",
+        "migrations/**",
+        "Anchor.toml",
+        "Cargo.toml",
+        "Cargo.lock",
+        "package.json",
+        "yarn.lock",
+        "tsconfig.json",
+        "readme.MD",
+        "README.md",
+        ".gitignore",
+        ".gitattributes",
+        ".prettierignore"
+      ],
+      "baseline": {
+        "programs/fundraiser/src/constants.rs": "01e8e1b998c69c894ea83725d4c5bb01afae2595",
+        "programs/fundraiser/src/error.rs": "0c7ee948bb0881a84521d3c8eebc9ececeb91b7f",
+        "programs/fundraiser/src/instructions/checker.rs": "e852c342860c46cf9d40b5ef882245709bf66b8e",
+        "programs/fundraiser/src/instructions/contribute.rs": "75dc18f95a55f07d8004db3ce920ad4f6d3410b5",
+        "programs/fundraiser/src/instructions/initialize.rs": "4d108dcbf1386fd5dbeeda82f3605b450da85643",
+        "programs/fundraiser/src/instructions/mod.rs": "40bece332b8300e66fe7cd9f751ff849e017d00c",
+        "programs/fundraiser/src/instructions/refund.rs": "70c109d4e7e1222d1120e9f17abf9eb66d51f3ea",
+        "programs/fundraiser/src/lib.rs": "654378570f36cb208799291fe8f16251d3b34eba",
+        "programs/fundraiser/src/state/contributor.rs": "31f7d3a767ba21b798bffe5d23b0643b297271dc",
+        "programs/fundraiser/src/state/fundraiser.rs": "b43affaff1c8f86ceb267602d18fb818044f814e",
+        "programs/fundraiser/src/state/mod.rs": "3e6b07fdba7a3bad05c36247dbf0c00f2ab3ce07",
+        "tests/fundraiser.ts": "193c79326420474998cbf0ff3be6672c19b8f812",
+        "tests/time-window-bankrun.ts": "a616baa2adc43934dc61bd4e85a0bf3d2ba10dfe",
+        "tests/time-window.ts": "bb6331c245396dd1346e8f0b0a26ab384354639b"
+      }
+    },
 };
 
 export function getManifest(challengeId: string): Manifest | null {

@@ -101,6 +101,25 @@ boundary test" cannot circulate as an answer key.
 
 ---
 
+## The open-ended one
+
+Assignment 04 breaks the pattern, because the assignment is different in kind:
+the learner picks the feature, so there is nothing canonical to test against.
+
+The grader checks four things that hold whichever feature they chose — it
+builds; the suite is green with at least three more passing tests than the
+starter ships; the built IDL has an instruction, account or field the starter
+does not; and at least one new `#[error_code]` variant exists. Those four are
+reported in the same `canonical` slot, so the site reads one shape for every
+challenge and awards only when all four are met.
+
+It is honest about what that proves. The learner owns the test harness, so a
+padded suite passes. The gate exists to make sure that what reaches the pull
+request already builds and runs — the judging happens when a person reads it.
+That is also why the run's notes list the new surface by name: seeing
+`claimMilestone`, `Fundraiser.milestonesHit`, `MilestoneAlreadyClaimed` tells
+you what somebody built before you open a file.
+
 ## What the server checks before it believes a word of it
 
 A learner submits `{ challengeId, repoFullName, commitSha }` while signed in

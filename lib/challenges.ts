@@ -62,6 +62,27 @@ export const CHALLENGES: Challenge[] = [
     pointsMutation: 60,
     mutationEnabled: false,
   },
+  {
+    id: "fundraiser-feature",
+    index: 4,
+    eyebrow: "Assignment 04 · Fundraiser",
+    title: "Ship a feature nobody specified for you.",
+    emphasis: "nobody",
+    tagline:
+      "The fundraiser collects contributions, pays out on success and refunds on failure. It does nothing else. Pick one feature worth adding — milestones, lottery tickets, receipts, rewards, or your own — design the state it needs, build it, and write the three tests that prove it: the happy path, the boundary, and the abuse case.",
+    level: "Advanced",
+    time: "6–10 hours",
+    stack: "Anchor 1.1 · SPL Token · TypeScript tests",
+    checkpoints: 8,
+    tutorialUrl: "https://tutorial-fundraiser.vercel.app/",
+    repoFullName: "JavierBonill4/anchor-fundraiser",
+    pointsCanonical: 100,
+    pointsMutation: 0,
+    // There is nothing canonical to mutate when the learner picks the
+    // feature. The grader checks that something was shipped and that it is
+    // tested; whether it is any GOOD is the pull request's job.
+    mutationEnabled: false,
+  },
 ];
 
 export function getChallenge(id: string): Challenge | undefined {
