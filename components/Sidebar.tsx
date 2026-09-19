@@ -12,6 +12,7 @@ import type { SideQuestState } from "@/lib/types";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/attendance", label: "Attendance" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/ecosystem", label: "Ecosystem" },
   { href: "/profile", label: "Profile" },

@@ -473,6 +473,46 @@ export async function getProfile(pubkey: string): Promise<Profile> {
 }
 
 /**
+ * Link every still-unmatched roster row that carries one of this person's
+ * names to them.
+ *
+ * This is what makes attendance self-service: a learner sets their Google
+ * Meet name and immediately sees the sessions they were in, with no admin in
+ * the loop. Run on every profile save and on every read of their own
+ * attendance, so it heals whether they set the name before or after a roster
+ * was uploaded.
+ *
+ * Only NULL rows are touched. A row already pointing at somebody is either an
+ * earlier match or a decision an admin made by hand, and typing that person's
+ * name into your profile must not take it from them.
+ */
+export async function claimAttendanceForUser(pubkey: string): Promise<number> {
+  const profile = await getProfile(pubkey);
+  const mine = new Set(
+    matchableNames(profile, [profile.displayName, profile.githubLogin]).map(
+      (n) => normalizeName(n.value)
+    )
+  );
+  if (mine.size === 0) return 0;
+
+  const open = await db()
+    .select({ id: attendanceRecords.id, rawName: attendanceRecords.rawName })
+    .from(attendanceRecords)
+    .where(isNull(attendanceRecords.userPubkey));
+
+  let claimed = 0;
+  for (const r of open) {
+    if (!mine.has(normalizeName(r.rawName))) continue;
+    await db()
+      .update(attendanceRecords)
+      .set({ userPubkey: pubkey })
+      .where(eq(attendanceRecords.id, r.id));
+    claimed += 1;
+  }
+  return claimed;
+}
+
+/**
  * Write all four names and the chosen source.
  *
  * `display_name` is rewritten from them in the same statement. It is the only
@@ -501,6 +541,10 @@ export async function setProfileNames(
     .update(users)
     .set({ ...names, displayName: resolveDisplayName(names) })
     .where(eq(users.pubkey, pubkey));
+
+  // Setting a Meet name is the whole point of the field, so act on it now
+  // rather than waiting for an admin to press Re-match.
+  await claimAttendanceForUser(pubkey);
 }
 
 /**

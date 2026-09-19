@@ -250,7 +250,12 @@ export function ProfileForm() {
               ? `You appear as ${profile.displayName}.`
               : "No name set — you appear as your wallet address."}
           </p>
-          {profile?.meetName ? null : (
+          {profile?.meetName ? (
+            <p style={{ marginTop: 6 }}>
+              Past rosters have been re-checked against your Meet name —{" "}
+              <a href="/attendance">see your attendance</a>.
+            </p>
+          ) : (
             <p style={{ marginTop: 6 }}>
               You have not set a Google Meet name, so class rosters will not
               find you automatically.
