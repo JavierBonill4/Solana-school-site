@@ -100,6 +100,41 @@ check that the grader is wired up.
 Then from a second account: fork, put that wallet in `wallet-pubkey`, add a
 feature, push. Expect `Gates met: 4/4 · 100 points`.
 
+## Two things that are easy to get wrong
+
+**`anchor test` needs surfpool, not solana-test-validator.** Anchor 1.0 changed
+the default backend, and surfpool is a separate install. Without it the command
+dies before a single test runs, and mocha prints nothing — which a naive grader
+reports as "your tests failed". The workflow installs it, and `grade.py` retries
+on `--validator legacy` if it is missing, so a toolchain problem never gets
+blamed on a learner.
+
+**avm cannot be used in a hardened workflow.** Current avm verifies the binary's
+build provenance through the GitHub attestations API, which answers **403** to a
+job holding only `contents: read`. `avm install 1.1.2` therefore fails outright.
+The workflow takes the release binary directly and checks its SHA-256 itself;
+the fallback is `cargo install anchor-cli`, which has no provenance step.
+
+## Changing a sealed file after learners have forked
+
+`verify.yml`, `grader/grade.py` and `grader/baseline.json` are pinned by blob
+SHA, so editing one in the upstream invalidates every fork that has not synced.
+The full sequence is:
+
+1. Push the change to the upstream.
+2. **Re-run `gen-manifest.mjs` and paste the new entry** into `lib/manifests.ts`,
+   then redeploy. Until you do, every submission is rejected with
+   *"verify.yml has been modified"* — including honest ones, because the fork's
+   old copy no longer matches the new pin.
+3. Tell learners to sync **and merge into their working branch**. Syncing `main`
+   is not enough: the workflow that runs on a push to `feat/whatever` is the one
+   in *that branch's* tree, and the manifest check reads the tree at the
+   submitted commit. `git fetch upstream && git merge upstream/main` on their
+   branch, then push.
+
+Step 3 is the reason to get the workflow right before a cohort starts, and the
+reason the grader falls back rather than failing whenever it reasonably can.
+
 ## How long a run takes
 
 Roughly **8–14 minutes cold, 4–7 warm**, per fork.
@@ -108,7 +143,8 @@ Roughly **8–14 minutes cold, 4–7 warm**, per fork.
 |---|---|---|---|
 | Rust + Node setup | ~30s | ~30s | prebuilt |
 | Solana toolchain | 1–2 min | 1–2 min | prebuilt download, not cached by us |
-| Anchor 1.1.2 | ~20s | ~20s | prebuilt binary, checksum-pinned |
+| Anchor 1.1.2 | ~20s | ~20s | prebuilt binary, checksum-pinned; avm is not used |
+| surfpool | ~15s | ~15s | prebuilt tarball, checksum-pinned |
 | platform-tools | 1–2 min | ~0 | `actions/cache` on `~/.cache/solana` |
 | `yarn install` | ~1 min | ~1 min | |
 | `anchor build` | 4–7 min | 1–2 min | `Swatinem/rust-cache`; the SBF compile is the floor |

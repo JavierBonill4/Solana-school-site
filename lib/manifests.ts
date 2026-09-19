@@ -123,12 +123,12 @@ export const MANIFESTS: Record<string, Manifest> = {
       }
     },
   // "token22-identity": add when doing grading level
-  // JavierBonill4/anchor-fundraiser @ main — generated 2026-09-18T19:27:03.455Z
+  // JavierBonill4/anchor-fundraiser @ main — generated 2026-09-19T15:39:13.895Z
     "fundraiser-feature": {
       "version": 1,
       "locked": {
-        ".github/workflows/verify.yml": "30f92d90fcbf4f74fd2af76d9487ad9075c08636",
-        "grader/grade.py": "6e5e1eea881bcc1a772458ac5b7330ca315c30d5",
+        ".github/workflows/verify.yml": "e90982dabd852b9221177f1579d98a7a8abe8b88",
+        "grader/grade.py": "ed95c6ddb7e5c526c103c8e9712a2621c864ebfe",
         "grader/baseline.json": "6f5aa12a958e3007989ed3a4b96d6890f78ebfab"
       },
       "editable": [
