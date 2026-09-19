@@ -116,7 +116,26 @@ export async function POST(req: Request) {
     );
   }
 
-  await ensureUser(fields.address);
-  await createSessionCookie(fields.address);
+  // The signature is good from here on. Anything that fails below is OUR
+  // problem, and it has to say so: an unhandled throw here becomes an HTML
+  // 500, the client cannot parse it, and it falls back to a message about the
+  // signature — sending the reader off to debug their wallet when the real
+  // fault is a database that has not been migrated.
+  try {
+    await ensureUser(fields.address);
+    await createSessionCookie(fields.address);
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error("[auth] verified the signature but could not start a session:", detail);
+    return NextResponse.json(
+      {
+        error:
+          "Your signature was valid, but the server could not start a session. This is a server fault, not a wallet problem — the usual cause is a pending database migration.",
+        detail,
+      },
+      { status: 500 }
+    );
+  }
+
   return NextResponse.json({ pubkey: fields.address });
 }

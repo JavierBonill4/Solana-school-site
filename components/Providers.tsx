@@ -94,10 +94,19 @@ function SessionBridge({ children }: { children: React.ReactNode }) {
       });
 
       if (!verify.ok) {
-        const body = (await verify.json().catch(() => ({}))) as {
+        // A 500 from Next is an HTML error page, so .json() throws and there
+        // is no `error` field to read. Saying "could not verify that
+        // signature" there is a lie that costs somebody an evening: the
+        // signature was almost certainly fine and the server broke.
+        const body = (await verify.json().catch(() => null)) as {
           error?: string;
-        };
-        throw new Error(body.error ?? "Could not verify that signature.");
+        } | null;
+        throw new Error(
+          body?.error ??
+            (verify.status >= 500
+              ? `The server errored while signing you in (HTTP ${verify.status}). Your wallet and signature are probably fine — check the server logs.`
+              : `Sign-in was refused (HTTP ${verify.status}).`)
+        );
       }
       await refresh();
     } catch (e) {
