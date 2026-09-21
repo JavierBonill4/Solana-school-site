@@ -22,7 +22,7 @@ export const ECOSYSTEM: EcosystemGroup[] = [
         href: "https://turbin3.org/institute",
         blurb:
           "Six weeks, beginner to intermediate, project-based. Architecture, Anchor, token programs, RWAs, capstone.",
-        note: "Applications closed · next TBA",
+        note: "Applications opened for Q4",
       },
       {
         name: "Blueshift",
