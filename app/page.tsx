@@ -10,17 +10,18 @@ export default function HomePage() {
       <header className="page-head">
         <div className="eyebrow">
           <span className="rule" />
-          <span className="lbl">Solana School · Challenge Track</span>
+          <span className="lbl">Solana School · Home Page</span>
         </div>
         <h1>
-          Write the program. Then write the tests that{" "}
-          <span className="hi">catch you</span>.
+          Learn how to build on Solana. Then explore the greater{" "}
+          <span className="hi">ecosystem</span>.
         </h1>
         <p className="deck">
-          Four Anchor challenges. The first three are graded two ways — our tests
-          run against your program, and your tests run against ours, the broken
-          ones. The last one has no answer key: you pick the feature. Connect a
-          wallet, push a commit, collect the points.
+          Welcome to the home site for Solana School. As a student, access your 
+          assignments, attendance, and resources from the course and beyond. If 
+          you're not a student explore resources from the Solana ecosystem, try 
+          out our first challenge, and apply for Solana School's next cohort in the Resources
+          tab. Connect a wallet, set up your profile, and explore Solana!
         </p>
       </header>
 
@@ -30,7 +31,7 @@ export default function HomePage() {
             <span className="rule" />
             <span className="lbl">The track</span>
           </div>
-          <h2>Four assignments, in order.</h2>
+          {/* <h2>Four assignments, in order.</h2>
           <p>
             Each starts from a repo that already works and asks you to add the
             one thing it is missing — and the last one asks you to decide what
@@ -38,7 +39,7 @@ export default function HomePage() {
             read them. To submit, push to your fork: CI grades it in
             your own runner and we read the result, so your code never runs on
             our servers.
-          </p>
+          </p> */}
         </div>
 
         <ChallengeTrack />
