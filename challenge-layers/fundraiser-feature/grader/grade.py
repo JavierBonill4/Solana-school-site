@@ -197,6 +197,13 @@ def main() -> int:
             "tests/, that `yarn install` succeeds, and that `anchor build` "
             "produced target/types/fundraiser.ts for them to import."
         )
+        # Put the tail of the output in the result itself. Without it the
+        # learner sees "0 passing, 0 failing", concludes the runner is broken,
+        # and asks a human — when the actual reason was printed right there in
+        # a log they had no reason to open.
+        tail = [ln.strip() for ln in out.splitlines() if ln.strip()][-4:]
+        for ln in tail:
+            notes.append("anchor test: " + ln[:200])
     elif failing > 0:
         notes.append(f"{failing} test(s) failing. The suite has to be green.")
     elif passing < wanted:

@@ -74,7 +74,7 @@ export function ProfileForm() {
     );
   }
 
-  // What the leaderboard will say, worked out the same way the server does.
+  // What the site will show, worked out the same way the server does.
   const preview =
     draft[source].trim() ||
     NAME_SOURCES.map((s) => draft[s].trim()).find(Boolean) ||
@@ -104,7 +104,7 @@ export function ProfileForm() {
       }
       setProfile(body as Profile);
       setSaved(true);
-      // The sidebar and leaderboard read the session's profile.
+      // The sidebar reads the session's profile.
       refresh?.();
     } finally {
       setBusy(false);
@@ -167,7 +167,7 @@ export function ProfileForm() {
       >
         <div className="lbl">Show publicly</div>
         <p style={{ marginTop: 8, fontSize: ".94rem", color: "var(--ink-2)" }}>
-          Which of them appears on the leaderboard and the challenge track.
+          Which of them appears on the site — the sidebar, the challenge track, and to your instructors.
         </p>
 
         <div className="actions" style={{ marginTop: 12, flexWrap: "wrap" }}>

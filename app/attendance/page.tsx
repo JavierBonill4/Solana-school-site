@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AttendanceList } from "@/components/AttendanceList";
 
 export const metadata: Metadata = {
-  title: "Attendance · Solana Summer",
+  title: "Attendance · Solana School",
 };
 
 export default function AttendancePage() {

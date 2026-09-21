@@ -15,7 +15,7 @@ export interface SiwsFields {
 }
 
 export const SIWS_STATEMENT =
-  "Sign in to Solana Summer. This is a signature, not a transaction: it costs nothing and cannot move your funds.";
+  "Sign in to Solana School. This is a signature, not a transaction: it costs nothing and cannot move your funds.";
 
 export function buildSiwsMessage(f: SiwsFields): string {
   return [

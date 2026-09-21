@@ -7,6 +7,7 @@ import {
   getClaims,
   getPoints,
   getSideQuestPoints,
+  getStudentAttendance,
   getSubmissions,
 } from "@/lib/db";
 
@@ -23,8 +24,16 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const [points, challengePoints, questPoints, submissions, claims, admin, profile] =
-    await Promise.all([
+  const [
+    points,
+    challengePoints,
+    questPoints,
+    submissions,
+    claims,
+    admin,
+    profile,
+    attendance,
+  ] = await Promise.all([
       getPoints(session.pubkey),
       getChallengePoints(session.pubkey),
       getSideQuestPoints(session.pubkey),
@@ -32,6 +41,7 @@ export async function GET() {
       getClaims(session.pubkey),
       isAdmin(),
       getProfile(session.pubkey),
+      getStudentAttendance(session.pubkey),
     ]);
 
   return NextResponse.json({
@@ -44,5 +54,6 @@ export async function GET() {
     submissions,
     claims,
     isAdmin: admin,
+    attended: attendance.length,
   });
 }

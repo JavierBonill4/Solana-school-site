@@ -1,4 +1,4 @@
-# Deploying Solana Summer
+# Deploying Solana School
 
 Assignment 01 grades end to end. This gets it somewhere learners can reach.
 
@@ -20,7 +20,7 @@ still ignored correctly — what is not covered is a stray copy like
 commit, not after; a secret in history stays in history.
 
 ```bash
-git commit -m "Solana Summer platform"
+git commit -m "Solana School platform"
 gh repo create JavierBonill4/solana-summer --private --source=. --push
 ```
 
@@ -69,9 +69,32 @@ Set these in your host, not in a file:
 |---|---|
 | `DATABASE_URL` | pooled Postgres connection string |
 | `SESSION_SECRET` | fresh 32 random bytes, different from dev |
+| `SITE_HOSTS` | **Every custom domain you have attached**, comma-separated. Leave unset if you only use the `.vercel.app` URL. |
 | `NEXT_PUBLIC_SITE_ORIGIN` | **Leave unset on Vercel.** See below. |
 | `ADMIN_PUBKEYS` | your wallet, comma separated for more |
 | `GITHUB_TOKEN` | the bot account's classic `repo` token |
+
+### Custom domains: `SITE_HOSTS`
+
+Sign-in is domain-bound — a signature made on one host is refused on another,
+which is what stops a signature a learner was tricked into producing elsewhere
+being replayed here. The allowed hosts come from the `VERCEL_*` variables,
+and **those only ever describe Vercel's own hostnames**. Attaching
+`example.com` to a project does not add it.
+
+So the first sign-in on a new custom domain fails with *"That signature was
+issued for example.com, which is not this site."* The fix is to name it:
+
+```
+SITE_HOSTS=example.com
+```
+
+Comma-separate several. The `www.` counterpart of anything listed is accepted
+automatically, as is every `.vercel.app` URL Vercel gives you, so one entry per
+domain is enough.
+
+`SITE_HOSTS` is read at request time rather than baked in at build, so adding a
+domain later is an environment-variable change plus a redeploy — no code change.
 
 ### About `NEXT_PUBLIC_SITE_ORIGIN`
 

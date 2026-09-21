@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ProfileForm } from "@/components/ProfileForm";
 
-export const metadata: Metadata = { title: "Profile · Solana Summer" };
+export const metadata: Metadata = { title: "Profile · Solana School" };
 
 export default function ProfilePage() {
   return (

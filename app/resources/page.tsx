@@ -2,16 +2,16 @@ import type { Metadata } from "next";
 import { ECOSYSTEM } from "@/lib/ecosystem";
 
 export const metadata: Metadata = {
-  title: "Ecosystem · Solana Summer",
+  title: "Resources · Solana School",
 };
 
-export default function EcosystemPage() {
+export default function ResourcesPage() {
   return (
     <>
       <header className="page-head">
         <div className="eyebrow">
           <span className="rule" />
-          <span className="lbl">Ecosystem</span>
+          <span className="lbl">Resources</span>
         </div>
         <h1>Where to go after this.</h1>
         <p className="deck">

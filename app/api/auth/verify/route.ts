@@ -41,28 +41,45 @@ export async function POST(req: Request) {
   // the signed domain against hosts we know are ours. Vercel's per-deploy and
   // per-branch URLs are included, otherwise sign-in works in production and
   // mysteriously fails on every preview deployment.
-  const allowedHosts = new Set(
-    [
-      process.env.NEXT_PUBLIC_SITE_ORIGIN,
-      process.env.VERCEL_PROJECT_PRODUCTION_URL,
-      process.env.VERCEL_BRANCH_URL,
-      process.env.VERCEL_URL,
-    ]
-      .filter((v): v is string => !!v)
-      .map((v) => {
-        try {
-          return new URL(v.includes("://") ? v : `https://${v}`).host;
-        } catch {
-          return null;
-        }
-      })
-      .filter((v): v is string => !!v)
-  );
+  // A site can legitimately answer on several hosts at once: an apex domain,
+  // its www counterpart, the .vercel.app URL, and a preview deployment. The
+  // VERCEL_* variables only ever describe Vercel's own hostnames — attaching
+  // a custom domain does NOT add it here — which is why a custom domain needs
+  // to be named explicitly or every signature made on it is refused.
+  //
+  // SITE_HOSTS is a comma-separated list and is read at request time, so
+  // adding a domain is an environment-variable change and a restart, not a
+  // rebuild. NEXT_PUBLIC_SITE_ORIGIN still works and is still baked in at
+  // build time, because it is NEXT_PUBLIC_.
+  const configuredHosts = [
+    ...(process.env.SITE_HOSTS ?? "").split(","),
+    process.env.NEXT_PUBLIC_SITE_ORIGIN,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.VERCEL_URL,
+  ];
+
+  const allowedHosts = new Set<string>();
+  for (const raw of configuredHosts) {
+    const value = raw?.trim();
+    if (!value) continue;
+    let host: string;
+    try {
+      host = new URL(value.includes("://") ? value : `https://${value}`).host;
+    } catch {
+      continue;
+    }
+    allowedHosts.add(host);
+    // Whoever controls a domain controls its www counterpart, and a host that
+    // serves one almost always serves the other. Accepting both turns a whole
+    // class of "works on www, refuses on the apex" into a non-event.
+    allowedHosts.add(host.startsWith("www.") ? host.slice(4) : `www.${host}`);
+  }
 
   if (allowedHosts.size === 0) {
     console.error(
-      "[auth] No NEXT_PUBLIC_SITE_ORIGIN and no VERCEL_* host. Refusing to " +
-        "accept any signature rather than accepting all of them."
+      "[auth] No SITE_HOSTS, no NEXT_PUBLIC_SITE_ORIGIN and no VERCEL_* host. " +
+        "Refusing to accept any signature rather than accepting all of them."
     );
     return NextResponse.json(
       { error: "This site is misconfigured and cannot sign anyone in." },
@@ -72,7 +89,9 @@ export async function POST(req: Request) {
 
   if (!allowedHosts.has(fields.domain)) {
     console.error(
-      `[auth] rejected domain ${fields.domain}; allowed: ${[...allowedHosts].join(", ")}`
+      `[auth] rejected domain ${fields.domain}; allowed: ${[...allowedHosts].join(", ")}. ` +
+        `If ${fields.domain} is a domain you added, put it in SITE_HOSTS ` +
+        `(comma-separated) and redeploy.`
     );
     return NextResponse.json(
       {

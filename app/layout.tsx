@@ -4,7 +4,7 @@ import { Providers } from "@/components/Providers";
 import { Sidebar } from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Solana Summer",
+  title: "Solana School",
   description:
     "Four Anchor challenges, graded on what the code actually does — in your CI runner, never on our servers.",
 };

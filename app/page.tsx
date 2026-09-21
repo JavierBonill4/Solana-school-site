@@ -1,14 +1,8 @@
 import Link from "next/link";
 import { ChallengeTrack } from "@/components/ChallengeTrack";
-import { LeaderboardTable } from "@/components/LeaderboardTable";
-import { getLeaderboard } from "@/lib/db";
 import { ECOSYSTEM } from "@/lib/ecosystem";
 
-// The leaderboard is a live query, so this page cannot be prerendered.
-export const dynamic = "force-dynamic";
-
-export default async function HomePage() {
-  const rows = await getLeaderboard();
+export default function HomePage() {
   const compete = ECOSYSTEM.find((g) => g.heading === "Go compete");
 
   return (
@@ -16,7 +10,7 @@ export default async function HomePage() {
       <header className="page-head">
         <div className="eyebrow">
           <span className="rule" />
-          <span className="lbl">Solana Summer · Challenge Track</span>
+          <span className="lbl">Solana School · Challenge Track</span>
         </div>
         <h1>
           Write the program. Then write the tests that{" "}
@@ -50,21 +44,6 @@ export default async function HomePage() {
         <ChallengeTrack />
       </section>
 
-      <section className="block">
-        <div className="head">
-          <div className="eyebrow">
-            <span className="rule" />
-            <span className="lbl">Leaderboard</span>
-          </div>
-          <h2>Everyone who has shipped.</h2>
-        </div>
-
-        <LeaderboardTable rows={rows} limit={5} />
-
-        <p className="inline-note">
-          <Link href="/leaderboard">See the full board →</Link>
-        </p>
-      </section>
 
       {compete && (
         <section className="block">
@@ -92,7 +71,7 @@ export default async function HomePage() {
           </div>
 
           <p className="inline-note">
-            <Link href="/ecosystem">
+            <Link href="/resources">
               Courses, hackathons and references worth bookmarking →
             </Link>
           </p>

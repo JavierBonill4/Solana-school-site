@@ -13,8 +13,7 @@ const NAV = [
   { href: "/", label: "Home" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/attendance", label: "Attendance" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/ecosystem", label: "Ecosystem" },
+  { href: "/resources", label: "Resources" },
   { href: "/profile", label: "Profile" },
 ];
 
@@ -52,11 +51,16 @@ export function Sidebar() {
     <aside className="sidebar">
       <Link href="/" className="brand">
         <span className="dot" />
-        <span className="name">Solana Summer</span>
+        <span className="name">Solana School</span>
       </Link>
 
       <nav className="nav">
-        {NAV.map((item) => (
+        {NAV.filter(
+          // The Attendance tab only appears once there is something in it.
+          // Matching happens at roster upload and on profile save, so a
+          // student who sets their Meet name gets the tab straight away.
+          (item) => item.href !== "/attendance" || (profile?.attended ?? 0) >= 1
+        ).map((item) => (
           <Link
             key={item.href}
             href={item.href}

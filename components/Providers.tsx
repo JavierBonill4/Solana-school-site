@@ -28,6 +28,8 @@ export interface Profile {
   submissions: Submission[];
   claims: SideQuestClaim[];
   isAdmin: boolean;
+  /** Sessions this wallet is credited with. Gates the Attendance tab. */
+  attended: number;
 }
 
 interface SessionValue {

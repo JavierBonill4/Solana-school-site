@@ -1,6 +1,6 @@
-# Solana Summer
+# Solana School
 
-A challenge hub for the Solana Summer tutorials. Wallet auth, a real points
+A challenge hub for the Solana School tutorials. Wallet auth, a real points
 ledger, a portfolio, an admin view, and a submission pipeline that never
 executes learner code.
 

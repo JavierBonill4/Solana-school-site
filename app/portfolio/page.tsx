@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PortfolioList } from "@/components/PortfolioList";
 
 export const metadata: Metadata = {
-  title: "Portfolio · Solana Summer",
+  title: "Portfolio · Solana School",
 };
 
 export default function PortfolioPage() {

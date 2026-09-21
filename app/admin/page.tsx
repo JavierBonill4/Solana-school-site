@@ -10,7 +10,7 @@ import { getSideQuest } from "@/lib/sidequests";
 import { shortAddress } from "@/lib/points";
 import { ClaimActions } from "@/components/ClaimActions";
 
-export const metadata: Metadata = { title: "Admin · Solana Summer" };
+export const metadata: Metadata = { title: "Admin · Solana School" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
