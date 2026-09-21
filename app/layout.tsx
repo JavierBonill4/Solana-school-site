@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import { Sidebar } from "@/components/Sidebar";
+import { TopBar } from "@/components/TopBar";
 
 export const metadata: Metadata = {
   title: "Solana School",
   description:
-    "Four Anchor challenges, graded on what the code actually does — in your CI runner, never on our servers.",
+    "Learn Solana: community developer resources, challenges, and a place to track your progress.",
 };
 
 export default function RootLayout({
@@ -30,10 +30,8 @@ export default function RootLayout({
       </head>
       <body>
         <Providers>
-          <div className="shell">
-            <Sidebar />
-            <main className="main">{children}</main>
-          </div>
+          <TopBar />
+          <main className="main">{children}</main>
         </Providers>
       </body>
     </html>

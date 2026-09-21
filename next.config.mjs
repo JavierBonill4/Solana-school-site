@@ -6,6 +6,7 @@ const nextConfig = {
     return [
       { source: "/ecosystem", destination: "/resources", permanent: true },
       { source: "/leaderboard", destination: "/", permanent: false },
+      { source: "/portfolio", destination: "/challenges", permanent: true },
     ];
   },
 };

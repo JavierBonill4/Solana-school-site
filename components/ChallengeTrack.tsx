@@ -60,7 +60,7 @@ export function ChallengeTrack() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Read the tutorial
+                Challenge!
               </a>
               <a
                 className="btn quiet"
