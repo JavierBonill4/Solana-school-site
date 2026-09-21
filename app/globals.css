@@ -38,14 +38,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #131019;
-    --surface: #1b1826;
-    --surface-2: #241f36;
-    --ink: #eeeaf7;
-    --ink-2: #aba2c2;
-    --ink-3: #7e7595;
+    --ground: #07060d;
+    --surface: #12101c;
+    --surface-2: #1c1830;
+    --ink: #f2eefc;
+    --ink-2: #b3aacb;
+    --ink-3: #7d7598;
     --accent: #a38dff;
-    --accent-soft: #282040;
+    --accent-soft: #231d3d;
     --teal: #3ed3cb;
     --good: #4fd1a8;
     --good-soft: #122c24;
@@ -57,21 +57,22 @@
     --code-bg: #0f0d17;
     --code-ink: #dfdaf0;
     --code-mute: #6b6390;
-    --rule: #2b2640;
-    --rule-2: #3a3355;
+    --rule: rgba(255, 255, 255, 0.08);
+    --rule-2: rgba(255, 255, 255, 0.16);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --ground: #131019;
-  --surface: #1b1826;
-  --surface-2: #241f36;
-  --ink: #eeeaf7;
-  --ink-2: #aba2c2;
-  --ink-3: #7e7595;
+  --ground: #07060d;
+  --surface: #12101c;
+  --surface-2: #1c1830;
+  --ink: #f2eefc;
+  --ink-2: #b3aacb;
+  --ink-3: #7d7598;
   --accent: #a38dff;
-  --accent-soft: #282040;
+  --accent-soft: #231d3d;
   --teal: #3ed3cb;
   --good: #4fd1a8;
   --good-soft: #122c24;
@@ -83,9 +84,10 @@
   --code-bg: #0f0d17;
   --code-ink: #dfdaf0;
   --code-mute: #6b6390;
-  --rule: #2b2640;
-  --rule-2: #3a3355;
+  --rule: rgba(255, 255, 255, 0.08);
+  --rule-2: rgba(255, 255, 255, 0.16);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
 }
 
 * {
@@ -1273,25 +1275,8 @@ tr.me td.figure {
 
 /* --- home: dark ---------------------------------------------------------- */
 
-/* The tokens are redefined on body, so everything on the page — the top bar
-   included — picks up the dark palette while the home page is showing, and
-   every other page keeps its own. */
-body:has(.hero) {
-  --ground: #07060d;
-  --surface: #12101c;
-  --surface-2: #1c1830;
-  --ink: #f2eefc;
-  --ink-2: #b3aacb;
-  --ink-3: #7d7598;
-  --accent: #a38dff;
-  --accent-soft: #231d3d;
-  --teal: #3ed3cb;
-  --bad: #ff8095;
-  --rule: rgba(255, 255, 255, 0.07);
-  --rule-2: rgba(255, 255, 255, 0.16);
-  background: var(--ground);
-  color: var(--ink);
-}
+/* The whole site is dark now (data-theme="dark" on <html>), so the home page
+   only differs in letting the top bar float over the hero. */
 body:has(.hero) .topbar {
   background: transparent;
   border-bottom-color: transparent;
@@ -1413,6 +1398,22 @@ body:has(.hero) .topbar {
 
 /* --- challenges: the rail ------------------------------------------------ */
 
+/* Solana's purple → green. The line is one continuous gradient from the first
+   challenge to the last: each filled segment shows only its own slice of it,
+   worked out from the item's index (--i) and the number of challenges (--n),
+   so a half-finished track stops partway through the colour, not at the end
+   of a fresh purple→green run per segment. */
+.rail {
+  --sol-purple: #9945ff;
+  --sol-green: #14f195;
+}
+.rail-item {
+  --p0: calc(var(--i, 0) / max(var(--n, 2) - 1, 1) * 100%);
+  --p1: calc((var(--i, 0) + 1) / max(var(--n, 2) - 1, 1) * 100%);
+  --c0: color-mix(in oklch, var(--sol-green) var(--p0), var(--sol-purple));
+  --c1: color-mix(in oklch, var(--sol-green) var(--p1), var(--sol-purple));
+}
+
 .rail-summary {
   display: flex;
   align-items: baseline;
@@ -1425,7 +1426,10 @@ body:has(.hero) .topbar {
   font-size: 2.6rem;
   line-height: 1;
   letter-spacing: -0.04em;
-  color: var(--accent);
+  background: linear-gradient(90deg, #9945ff, #14f195);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   font-variant-numeric: tabular-nums;
 }
 .rail-count .of {
@@ -1469,13 +1473,13 @@ body:has(.hero) .topbar {
   background: var(--rule-2);
 }
 .rail-item::after {
-  background: linear-gradient(180deg, var(--accent), #c86dff);
+  background: linear-gradient(180deg, var(--c0), var(--c1));
   transform: scaleY(0);
   transform-origin: top;
 }
 .rail-item.passed::after {
   transform: scaleY(1);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 50%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c0) 55%, transparent);
   animation: rail-fill 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: calc(var(--i, 0) * 160ms + 150ms);
 }
@@ -1505,11 +1509,11 @@ body:has(.hero) .topbar {
   transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
 }
 .rail-item.passed .rail-node {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--c0);
+  border-color: var(--c0);
   box-shadow:
-    0 0 0 5px var(--accent-soft),
-    0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+    0 0 0 5px color-mix(in srgb, var(--c0) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--c0) 60%, transparent);
 }
 .rail-item.attempted .rail-node,
 .rail-item.pending .rail-node {

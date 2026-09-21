@@ -38,6 +38,13 @@ export const ECOSYSTEM: EcosystemGroup[] = [
         note: "31 lessons · 16 projects",
       },
       {
+        name: "bri (@brimigs) on YouTube",
+        href: "https://www.youtube.com/@brimigs",
+        blurb:
+          "Solana and Rust development from a working blockchain developer — tutorials, walkthroughs and developer Q&As.",
+        note: "Video · free",
+      },
+      {
         name: "Solana Foundation Bootcamp",
         href: "https://solana.com/developers/bootcamp",
         blurb: "The official long-form video bootcamp.",

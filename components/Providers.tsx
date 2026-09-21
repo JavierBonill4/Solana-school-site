@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -54,7 +55,16 @@ export function useSession() {
 }
 
 function SessionBridge({ children }: { children: React.ReactNode }) {
-  const { publicKey, connected, signMessage, disconnect } = useWallet();
+  const { publicKey, connected, wallet, disconnect } = useWallet();
+
+  // The wallet library only attaches `signMessage` to an adapter while it has
+  // a connected account, and deletes it again on disconnect or when another
+  // wallet is selected. A `signMessage` captured in a closure can therefore
+  // outlive the method it calls — which surfaces as the baffling
+  // "adapter.signMessage is not a function". So read the adapter through a
+  // ref at the moment of signing, never from a stale render.
+  const walletRef = useRef(wallet);
+  walletRef.current = wallet;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +79,7 @@ function SessionBridge({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async () => {
-    if (!publicKey || !signMessage) return;
+    if (!publicKey) return;
     setSigningIn(true);
     setError(null);
     try {
@@ -84,7 +94,27 @@ function SessionBridge({ children }: { children: React.ReactNode }) {
         issuedAt: new Date().toISOString(),
       });
 
-      const signature = await signMessage(new TextEncoder().encode(message));
+      const adapter = walletRef.current?.adapter as
+        | {
+            name: string;
+            connected: boolean;
+            signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
+          }
+        | undefined;
+
+      // Disconnected or swapped while we were fetching the nonce — the effect
+      // below will run again for whichever wallet is connected now.
+      if (!adapter?.connected) return;
+
+      if (typeof adapter.signMessage !== "function") {
+        throw new Error(
+          `${adapter.name} can't sign a message, which is how this site signs you in. Try Phantom, Solflare or Backpack.`
+        );
+      }
+
+      const signature = await adapter.signMessage(
+        new TextEncoder().encode(message)
+      );
 
       const verify = await fetch("/api/auth/verify", {
         method: "POST",
@@ -112,14 +142,17 @@ function SessionBridge({ children }: { children: React.ReactNode }) {
       }
       await refresh();
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
       setError(
-        e instanceof Error ? e.message : "Sign-in was cancelled or failed."
+        /reject|declin|cancel|denied/i.test(msg)
+          ? "Signature request declined — connect again when you're ready."
+          : msg || "Sign-in was cancelled or failed."
       );
       setProfile(null);
     } finally {
       setSigningIn(false);
     }
-  }, [publicKey, signMessage, refresh]);
+  }, [publicKey, refresh]);
 
   // The session cookie lasts a week, so on load we ask the server who we are
   // before touching the wallet. Without this, a returning visitor would be

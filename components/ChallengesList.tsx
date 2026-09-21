@@ -57,7 +57,10 @@ export function ChallengesList() {
         </p>
       )}
 
-      <ol className="rail">
+      <ol
+        className="rail"
+        style={{ ["--n" as string]: CHALLENGES.length }}
+      >
         {CHALLENGES.map((c, i) => {
           const sub = profile?.submissions.find((s) => s.challengeId === c.id);
           const status = sub?.status ?? "none";
@@ -148,14 +151,6 @@ export function ChallengesList() {
                     rel="noopener noreferrer"
                   >
                     Challenge!
-                  </a>
-                  <a
-                    className="btn quiet"
-                    href={`https://github.com/${c.repoFullName}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Fork the repo
                   </a>
                   {profile && (
                     <button

@@ -15,7 +15,7 @@ import { shortAddress } from "@/lib/points";
  * on its own — an error hidden inside a closed menu is an error nobody reads.
  */
 export function WalletMenu() {
-  const { wallets, select, connect, connected, publicKey, connecting } =
+  const { wallets, wallet, select, connect, connected, publicKey, connecting } =
     useWallet();
   const { profile, signingIn, error, signOut } = useSession();
   const [open, setOpen] = useState(false);
@@ -133,11 +133,26 @@ export function WalletMenu() {
                       className="btn wide"
                       disabled={connecting}
                       onClick={async () => {
-                        select(w.adapter.name);
-                        try {
-                          await connect();
-                        } catch {
-                          /* the adapter surfaces its own errors */
+                        // Selecting is enough: the provider has autoConnect
+                        // on, so it connects the wallet it just selected.
+                        // Calling connect() here as well used the connect
+                        // function from BEFORE the selection — a second,
+                        // racing connect against the previous wallet — and
+                        // that churn is what left a sign-in holding a
+                        // signMessage the library had already deleted.
+                        //
+                        // The one case select() cannot handle is picking the
+                        // wallet that is already selected (after a declined
+                        // prompt, say): nothing changes, so nothing
+                        // auto-connects. Connect that one explicitly.
+                        if (wallet?.adapter.name === w.adapter.name) {
+                          try {
+                            await connect();
+                          } catch {
+                            /* the adapter surfaces its own errors */
+                          }
+                        } else {
+                          select(w.adapter.name);
                         }
                       }}
                     >
