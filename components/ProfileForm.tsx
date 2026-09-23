@@ -16,9 +16,9 @@ interface Profile {
   displayName: string | null;
   githubLogin: string | null;
   preferredName: string | null;
-  discordName: string | null;
   lumaName: string | null;
   meetName: string | null;
+  discordName: string | null;
   displayNameSource: NameSource;
 }
 
@@ -28,9 +28,9 @@ const EMPTY_DRAFT: Draft = { preferred: "", discord: "", luma: "", meet: "" };
 
 const FIELD_ID: Record<NameSource, string> = {
   preferred: "preferredName",
-  discord: "discordName",
   luma: "lumaName",
   meet: "meetName",
+  discord: "discordName",
 };
 
 function draftFrom(p: Profile): Draft {
@@ -38,9 +38,9 @@ function draftFrom(p: Profile): Draft {
     // An account that only ever had a display name keeps it, as the preferred
     // one — otherwise adding these fields would silently blank everybody.
     preferred: p.preferredName ?? p.displayName ?? "",
-    discord: p.discordName ?? "",
     luma: p.lumaName ?? "",
     meet: p.meetName ?? "",
+    discord: p.discordName ?? "",
   };
 }
 
@@ -91,9 +91,9 @@ export function ProfileForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           preferredName: draft.preferred,
-          discordName: draft.discord,
           lumaName: draft.luma,
           meetName: draft.meet,
+          discordName: draft.discord,
           displayNameSource: source,
         }),
       });
@@ -115,19 +115,19 @@ export function ProfileForm() {
     <form className="panel" onSubmit={save} style={{ maxWidth: "40rem" }}>
       <div className="lbl">Your names</div>
 
-      <div className="pf-detail" style={{ marginTop: 14 }}>
+      {/* <div className="pf-detail" style={{ marginTop: 14 }}>
         <span>
           <span className="k">Wallet</span>
           <span className="mono">{shortAddress(session.pubkey, 6, 6)}</span>
         </span>
-      </div>
+      </div> */}
 
-      <p style={{ marginTop: 14, fontSize: ".94rem", color: "var(--ink-2)" }}>
+      {/* <p style={{ marginTop: 14, fontSize: ".94rem", color: "var(--ink-2)" }}>
         All four are optional, and you choose which one is public. The Google
         Meet one is the only one that does any work behind the scenes: class
         rosters are exported from Meet, so that is the name attendance is
         matched against.
-      </p>
+      </p> */}
 
       <div style={{ marginTop: 18 }}>
         {NAME_SOURCES.map((s) => (

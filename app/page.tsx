@@ -25,6 +25,13 @@ export default function HomePage() {
       <Link href="/challenges" className="hero-cta">
         Explore!
       </Link>
+
+      <p className="hero-by">
+        made with <span aria-label="love">❤️</span> by{" "}
+        <a href="https://x.com/Javi_4B" target="_blank" rel="noopener noreferrer">
+          @Javi_4B
+        </a>
+      </p>
     </div>
   );
 }

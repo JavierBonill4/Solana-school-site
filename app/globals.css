@@ -1389,6 +1389,40 @@ body:has(.hero) .topbar {
 .hero-cta:hover::after {
   transform: translateX(4px);
 }
+/* Sits at the foot of the hero rather than in the centred stack, so it reads
+   as a signature and not as part of the pitch. */
+.hero-by {
+  position: absolute;
+  bottom: 22px;
+  /* Bottom-left corner. `right: auto` and an explicit text-align are both
+     needed: the rule used to span the full width, and the hero centres its
+     text, so without them it stays centred however far left it is pinned. */
+  left: 28px;
+  right: auto;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  animation: rise 0.9s 0.7s ease-out both;
+}
+.hero-by a {
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule-2);
+}
+.hero-by a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .hero-by {
+    left: 18px;
+    bottom: 16px;
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;

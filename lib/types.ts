@@ -23,7 +23,14 @@ export interface Challenge {
   stack: string;
   checkpoints: number;
   tutorialUrl: string;
+  /** The upstream to fork. Empty for a challenge that scaffolds its own. */
   repoFullName: string;
+  /**
+   * "ci" runs the full verification pipeline. "repo" is the placeholder used
+   * while a challenge has no grading layer yet: it confirms the repository is
+   * real, public and not the starter, and awards the points.
+   */
+  grading?: "ci" | "repo";
   pointsCanonical: number;
   pointsMutation: number;
   /**

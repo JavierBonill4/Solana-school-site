@@ -62,7 +62,10 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
     const body = JSON.stringify({
       challengeId: challenge.id,
       repoFullName: repo.trim(),
-      commitSha: sha.trim(),
+      // Left out entirely when the challenge is graded on the repo alone.
+      ...((challenge.grading ?? "ci") === "ci"
+        ? { commitSha: sha.trim() }
+        : {}),
     });
 
     const startedAt = Date.now();
@@ -105,6 +108,10 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
     }
   }
 
+  // Challenges without a grading layer are judged on the repository alone,
+  // so asking for a commit SHA would be asking for something we ignore.
+  const needsCommit = (challenge.grading ?? "ci") === "ci";
+
   const ok = outcome?.status === "passed";
   const running = outcome?.status === "running";
   const pending = outcome?.status === "pending";
@@ -117,8 +124,9 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
     <form className="panel" onSubmit={submit}>
       <div className="lbl">Submit {challenge.eyebrow}</div>
       <p style={{ marginTop: 9, fontSize: ".94rem", color: "var(--ink-2)" }}>
-        Push your branch first and let CI finish. We read the run — we never run
-        your code.
+        {needsCommit
+          ? "Push your branch first and let CI finish. We read the run — we never run your code."
+          : "Automated grading is not wired up for this one yet. Give us your repository and we will check it exists and is public; the work itself is reviewed by hand."}
       </p>
 
       <div className="row">
@@ -130,24 +138,36 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
             id={`repo-${challenge.id}`}
             value={repo}
             onChange={(e) => setRepo(e.target.value)}
-            placeholder={`you/${challenge.repoFullName.split("/")[1]}`}
+            placeholder={
+              challenge.repoFullName
+                ? `you/${challenge.repoFullName.split("/")[1]}`
+                : "you/your-repo"
+            }
             required
           />
         </div>
-        <div className="field" style={{ flex: "0 1 190px" }}>
-          <label className="lbl" htmlFor={`sha-${challenge.id}`}>
-            Commit SHA
-          </label>
-          <input
-            id={`sha-${challenge.id}`}
-            value={sha}
-            onChange={(e) => setSha(e.target.value)}
-            placeholder="3f9a1c8"
-            required
-          />
-        </div>
+        {needsCommit && (
+          <div className="field" style={{ flex: "0 1 190px" }}>
+            <label className="lbl" htmlFor={`sha-${challenge.id}`}>
+              Commit SHA
+            </label>
+            <input
+              id={`sha-${challenge.id}`}
+              value={sha}
+              onChange={(e) => setSha(e.target.value)}
+              placeholder="3f9a1c8"
+              required
+            />
+          </div>
+        )}
         <button className="btn" disabled={busy || waiting}>
-          {waiting ? "Waiting on CI…" : busy ? "Checking…" : "Verify run"}
+          {waiting
+            ? "Waiting on CI…"
+            : busy
+              ? "Checking…"
+              : needsCommit
+                ? "Verify run"
+                : "Submit repo"}
         </button>
         {waiting && (
           <button type="button" className="btn quiet" onClick={stop}>

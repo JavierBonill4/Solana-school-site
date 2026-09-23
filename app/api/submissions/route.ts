@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/session";
 import { getChallenge } from "@/lib/challenges";
+import type { Challenge } from "@/lib/types";
 import { getManifest, matchesGlob, sourceChanged } from "@/lib/manifests";
 import bs58 from "bs58";
 import {
@@ -118,17 +119,24 @@ export async function POST(req: Request) {
   }
 
   const { challengeId, repoFullName, commitSha } = body;
-  if (!challengeId || !repoFullName || !commitSha) {
-    return reject("Need a challenge, a repo and a commit.");
+  if (!challengeId || !repoFullName) {
+    return reject("Need a challenge and a repo.");
   }
 
   const challenge = getChallenge(challengeId);
   if (!challenge) return reject("No such challenge.", 404);
 
+  // A challenge with no grading layer yet is judged on the repository alone,
+  // and asking for a commit SHA there would be theatre.
+  const fullPipeline = (challenge.grading ?? "ci") === "ci";
+
+  if (fullPipeline && !commitSha) {
+    return reject("Need a challenge, a repo and a commit.");
+  }
   if (!/^[\w.-]+\/[\w.-]+$/.test(repoFullName)) {
     return reject("That does not look like a repository name.");
   }
-  if (!/^[0-9a-f]{7,40}$/i.test(commitSha)) {
+  if (commitSha && !/^[0-9a-f]{7,40}$/i.test(commitSha)) {
     return reject("That does not look like a commit SHA.");
   }
 
@@ -138,8 +146,10 @@ export async function POST(req: Request) {
     // Stored lower-case so "Owner/Repo" and "owner/repo" cannot become two
     // separate claims on the same fork.
     repoFullName: repoFullName.toLowerCase(),
-    commitSha: commitSha.toLowerCase(),
+    commitSha: (commitSha ?? "").toLowerCase(),
   };
+
+  if (!fullPipeline) return gradeOnRepoAlone(ctx, challenge);
 
   // 1 + 2 — fork lineage and visibility.
   const repo = await getRepo(repoFullName);
@@ -520,5 +530,94 @@ export async function POST(req: Request) {
       delta > 0
         ? `${summary}. +${Math.max(0, delta) + (ctx.attemptDelta ?? 0)} points.`
         : `${summary}. No new points — you have already been awarded ${already} for this challenge.`,
+  });
+}
+
+/**
+ * The placeholder grade, for challenges whose grading layer does not exist
+ * yet.
+ *
+ * It proves one thing: a real, public repository, which is not the starter
+ * everybody forks. That is all it claims to prove, and the learner is told as
+ * much rather than being shown a green tick that means more than it should.
+ *
+ * One repo can be claimed by one wallet, which is the only thing standing
+ * between this and a cohort submitting the same URL. When the real layer
+ * lands, flip `grading` to "ci" in lib/challenges.ts: the points already
+ * awarded here are counted against the challenge total, so passing properly
+ * later tops somebody up rather than paying twice.
+ */
+async function gradeOnRepoAlone(ctx: Ctx, challenge: Challenge) {
+  const repo = await getRepo(ctx.repoFullName);
+  if (!repo) {
+    return rejectAndRecord(
+      ctx,
+      "We could not read that repository. Check the owner/name, and that it is public."
+    );
+  }
+  if (repo.private) {
+    return rejectAndRecord(
+      ctx,
+      "That repository is private, so we cannot see it. Make it public and submit again."
+    );
+  }
+
+  const upstream = challenge.repoFullName;
+  if (upstream && repo.full_name.toLowerCase() === upstream.toLowerCase()) {
+    return rejectAndRecord(
+      ctx,
+      `That is the starter repository. Fork it and submit your own copy.`
+    );
+  }
+
+  const claimant = await findRepoClaimant(challenge.id, ctx.repoFullName);
+  if (claimant && claimant !== ctx.pubkey) {
+    return rejectAndRecord(
+      ctx,
+      "That repository has already been submitted by a different wallet."
+    );
+  }
+
+  // Pin the record to a real commit so a resubmission after more work is a
+  // new row rather than an overwrite of the old one.
+  ctx.commitSha =
+    (await resolveCommitSha(ctx.repoFullName, repo.default_branch)) ??
+    ctx.commitSha ??
+    "";
+
+  if (repo.owner?.login) {
+    await recordGithubLogin(ctx.pubkey, repo.owner.login);
+  }
+
+  const points = challenge.pointsCanonical;
+  const already = await getAwardedForChallenge(ctx.pubkey, challenge.id);
+  const summary =
+    "Repository verified. This challenge has no automated grading yet, so the work itself is reviewed by hand.";
+
+  await recordSubmission({
+    ...ctx,
+    status: "passed",
+    pointsAwarded: points,
+    reason: summary,
+  });
+
+  for (const row of ledgerDeltas(points, already, challenge.pointsCanonical)) {
+    await appendLedger({
+      pubkey: ctx.pubkey,
+      delta: row.delta,
+      reason: row.reason,
+      challengeId: challenge.id,
+    });
+  }
+
+  const delta = Math.max(0, points - already);
+  return NextResponse.json({
+    status: "passed",
+    commitSha: ctx.commitSha,
+    pointsAwarded: delta,
+    note:
+      delta > 0
+        ? `${summary} +${delta} points.`
+        : `${summary} No new points — you have already been awarded ${already} for this challenge.`,
   });
 }

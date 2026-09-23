@@ -15,31 +15,31 @@ export type NameSource = (typeof NAME_SOURCES)[number];
 
 export const NAME_LABELS: Record<NameSource, string> = {
   preferred: "Preferred name",
+  luma: "*Luma name",
+  meet: "*Google Meet name",
   discord: "Discord name",
-  luma: "Luma name",
-  meet: "Google Meet name",
 };
 
 export const NAME_HINTS: Record<NameSource, string> = {
   preferred: "What you would like to be called.",
+  luma: "The name you registered with. Required for Solana School students",
+  meet: "Exactly as it appears in the Meet participant list. Required for Solana School students.",
   discord: "Your handle in the course server.",
-  luma: "The name you registered with.",
-  meet: "Exactly as it appears in the Meet participant list — this is the one attendance matches on.",
 };
 
 export interface Names {
   preferredName: string | null;
-  discordName: string | null;
   lumaName: string | null;
   meetName: string | null;
+  discordName: string | null;
   displayNameSource: NameSource;
 }
 
 export const EMPTY_NAMES: Names = {
   preferredName: null,
-  discordName: null,
   lumaName: null,
   meetName: null,
+  discordName: null,
   displayNameSource: "preferred",
 };
 
@@ -51,12 +51,12 @@ export function nameFor(names: Names, source: NameSource): string | null {
   switch (source) {
     case "preferred":
       return names.preferredName;
-    case "discord":
-      return names.discordName;
     case "luma":
       return names.lumaName;
     case "meet":
       return names.meetName;
+    case "discord":
+      return names.discordName;
   }
 }
 

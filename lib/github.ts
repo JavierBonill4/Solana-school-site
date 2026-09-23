@@ -65,6 +65,7 @@ export interface Repo {
   full_name: string;
   private: boolean;
   fork: boolean;
+  default_branch: string;
   parent?: { full_name: string };
   owner: { login: string };
 }
