@@ -114,3 +114,36 @@ for the learner to notice.
 - CI takes roughly 6–9 minutes with the default single-mutant pack: Solana
   toolchain install, `anchor build`, then one test-binary rebuild per mutant. `Swatinem/rust-cache` keeps dependency
   compilation out of that after the first run.
+
+## The four gates (added after the first cohort)
+
+`grade.py` now also measures the same four things the fundraiser does, and
+reports them in `result.json` under `gates`:
+
+| Gate | What it means |
+|---|---|
+| `build` | `anchor build` produced an IDL at `target/idl/lamports_vault.json`. |
+| `tests` | The learner's own suite is green with **15+** passing. |
+| `surface` | The IDL gained an instruction, account or field the starter has not. |
+| `errors` | At least one new `#[error_code]` variant. |
+
+**15, not 14.** The starter's learner-editable tests are `test_deposit.rs` (5),
+`test_initialize.rs` (3) and `test_withdraw.rs` (4) — twelve, not the eleven
+the fundraiser ships. Three more makes fifteen. `canonical.rs` is ours and
+sealed, so its eleven do not count toward the learner's total.
+
+`grader/baseline.json` is a new sealed file holding the starter's surface and
+that test count. **It has to go into the repo alongside grade.py, and the
+manifest has to be regenerated**, or every submission fails on the sealed-file
+check.
+
+The grader exits green when EITHER the canonical suite passes or all four
+gates are met, because the site only ever reads successful runs and it — not
+this file — decides which picture a pass requires. That switch is
+`requires:` on the challenge in `lib/challenges.ts`: `"canonical"` (today),
+`"gates"`, or `"both"`. Changing it is a redeploy; nothing is pushed here and
+no manifest is regenerated.
+
+A fork still running the older `grade.py` reports no gates at all. Those
+submissions fall back to the canonical picture rather than failing, so an
+unsynced learner is not punished for our change.

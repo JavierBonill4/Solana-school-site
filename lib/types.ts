@@ -34,6 +34,20 @@ export interface Challenge {
    *         starter, and awards the points.
    */
   grading?: "ci" | "paste" | "repo";
+  /**
+   * For "ci" challenges, what a pass has to satisfy. The grader measures
+   * everything either way and reports both pictures, so this is the admin
+   * switch: change it, redeploy, done — no push to the challenge repo and no
+   * manifest to regenerate.
+   *
+   *   "canonical" — our sealed test suite passes (the original behaviour).
+   *   "gates"     — builds, own tests green and grown, IDL surface added,
+   *                 a new declared error.
+   *   "both"      — both of the above.
+   *
+   * Defaults to "canonical".
+   */
+  requires?: "canonical" | "gates" | "both";
   pointsCanonical: number;
   pointsMutation: number;
   /**

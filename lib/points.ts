@@ -19,8 +19,65 @@ export const MUTATION_FULL_CREDIT_AT = 0.8;
 export const ATTEMPT_POINTS = 20;
 
 /**
+ * Does this submission satisfy what the challenge asks for?
+ *
+ * Kept separate from scoring so the two questions stay separate: whether the
+ * work counts, and what it is worth.
+ */
+export function meetsRequirement(
+  challenge: Challenge,
+  canonicalPassed: number,
+  canonicalTotal: number,
+  gatesMet: boolean | null
+): { ok: boolean; why: string } {
+  const canonicalOk = canonicalTotal > 0 && canonicalPassed >= canonicalTotal;
+  const requires = challenge.requires ?? "canonical";
+
+  // `null` means the grader did not report gates at all — an older grade.py
+  // still in someone's fork. Falling back to the canonical picture keeps
+  // those submissions gradeable instead of failing them for our change.
+  if (gatesMet === null && requires !== "canonical") {
+    return canonicalOk
+      ? { ok: true, why: "canonical suite passed (this run reported no gates)" }
+      : {
+          ok: false,
+          why: `Canonical suite ${canonicalPassed}/${canonicalTotal}, and this run is from a grader that predates the four gates. Sync your fork with the upstream and push again.`,
+        };
+  }
+
+  if (requires === "canonical") {
+    return canonicalOk
+      ? { ok: true, why: "canonical suite passed" }
+      : {
+          ok: false,
+          why: `Canonical suite ${canonicalPassed}/${canonicalTotal}. Every test has to pass — a checkpoint is done or it is not.`,
+        };
+  }
+
+  if (requires === "gates") {
+    return gatesMet
+      ? { ok: true, why: "all four gates met" }
+      : { ok: false, why: "Not all four gates are met — see the notes below." };
+  }
+
+  // "both"
+  if (!canonicalOk) {
+    return {
+      ok: false,
+      why: `Canonical suite ${canonicalPassed}/${canonicalTotal}. Every test has to pass — a checkpoint is done or it is not.`,
+    };
+  }
+  return gatesMet
+    ? { ok: true, why: "canonical suite passed and all four gates met" }
+    : { ok: false, why: "Canonical suite passed, but not all four gates are met — see the notes below." };
+}
+
+/**
  * The canonical suite is all-or-nothing: a checkpoint is done or it isn't.
  * Mutation score gets partial credit, because it's a quality gradient.
+ *
+ * Callers decide whether the submission qualifies (see meetsRequirement);
+ * this only works out what a qualifying one is worth.
  */
 export function scoreSubmission(
   challenge: Challenge,
@@ -29,8 +86,6 @@ export function scoreSubmission(
   mutantsKilled: number,
   mutantsTotal: number
 ): number {
-  if (canonicalTotal === 0 || canonicalPassed < canonicalTotal) return 0;
-
   const rate = mutantsTotal === 0 ? 0 : mutantsKilled / mutantsTotal;
   const scaled = Math.min(1, rate / MUTATION_FULL_CREDIT_AT);
 

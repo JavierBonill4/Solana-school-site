@@ -1,0 +1,12 @@
+{
+  "_comment": "SEALED. The starter's on-chain surface and test count, as it ships. grade.py diffs the built IDL against this to answer 'did you add anything'. Names are compared case-insensitively with underscores stripped, so the snake_case here matches the camelCase Anchor emits.",
+  "challenge": "vault-limit",
+  "instructions": ["initialize", "deposit", "withdraw", "close"],
+  "accounts": {
+    "vault_state": ["vault_bump", "bump"]
+  },
+  "errors": ["CustomError"],
+  "_test_count_note": "test_deposit.rs 5 + test_initialize.rs 3 + test_withdraw.rs 4. canonical.rs is ours and sealed, so it is not counted here.",
+  "test_count": 12,
+  "new_tests_required": 3
+}

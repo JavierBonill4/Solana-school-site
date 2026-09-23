@@ -24,7 +24,12 @@ import {
   recordSubmission,
 } from "@/lib/db";
 import { readGraderResult } from "@/lib/grader-result";
-import { ATTEMPT_POINTS, ledgerDeltas, scoreSubmission } from "@/lib/points";
+import {
+  ATTEMPT_POINTS,
+  ledgerDeltas,
+  meetsRequirement,
+  scoreSubmission,
+} from "@/lib/points";
 
 export const dynamic = "force-dynamic";
 
@@ -458,13 +463,19 @@ export async function POST(req: Request) {
 
   const { passed, total } = result.canonical;
 
-  // grade.py already exits non-zero when the canonical suite fails, so a
-  // green run implies this — but never award on an assumption.
-  if (total === 0 || passed < total) {
-    return rejectAndRecord(
-      ctx,
-      `Canonical suite ${passed}/${total}. Every test has to pass — a checkpoint is done or it is not.`
-    );
+  // The grader reports both pictures; `requires` in lib/challenges.ts decides
+  // which one a pass has to satisfy. grade.py exits green when EITHER is
+  // satisfied, so this is where the choice is actually enforced — never award
+  // on the assumption that a green run means the right thing.
+  const g = result.gates;
+  const gatesMet = g ? g.build && g.tests && g.surface && g.errors : null;
+
+  const verdict = meetsRequirement(challenge, passed, total, gatesMet);
+  if (!verdict.ok) {
+    const detail = result.notes?.length
+      ? ` ${result.notes.slice(0, 4).join(" ")}`
+      : "";
+    return rejectAndRecord(ctx, verdict.why + detail);
   }
 
   const killed = result.mutation.killed;
@@ -487,13 +498,19 @@ export async function POST(req: Request) {
     );
   }
 
+  const gatesPart = g
+    ? ` · gates ${[g.build, g.tests, g.surface, g.errors].filter(Boolean).length}/4` +
+      (g.passing !== undefined ? ` (${g.passing} of your tests passing)` : "")
+    : "";
+
   const summary =
-    mutantsTotal === 0
+    (mutantsTotal === 0
       ? `Canonical ${passed}/${total} · no mutant pack configured, so mutation was not scored`
       : `Canonical ${passed}/${total} · mutants killed ${killed}/${mutantsTotal}` +
         (result.reference_check.tests_pass_on_correct_program
           ? ""
-          : " · your tests fail against the correct program, so mutation scored 0");
+          : " · your tests fail against the correct program, so mutation scored 0")) +
+    gatesPart;
 
   // The fork owner is proven at this point — wallet-pubkey in that repo named
   // this wallet, and only the owner can write it. Worth keeping, so the admin

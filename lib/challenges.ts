@@ -52,6 +52,9 @@ export const CHALLENGES: Challenge[] = [
     tutorialUrl: "https://tutorial-vault-lamports.vercel.app/",
     repoFullName: "javierbonill4/solana-summer-vault",
     grading: "ci",
+    // Switch to "gates" or "both" whenever you like — the grader reports both
+    // pictures on every run, so this takes effect on redeploy.
+    requires: "canonical",
     pointsCanonical: 100,
     pointsMutation: 60,
     mutationEnabled: true,

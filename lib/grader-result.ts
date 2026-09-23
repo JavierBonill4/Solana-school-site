@@ -16,6 +16,24 @@ export interface GraderResult {
   canonical: { passed: number; total: number };
   reference_check: { tests_pass_on_correct_program: boolean };
   mutation: { killed: number; total: number; killed_ids?: string[] };
+  /**
+   * The four coarse gates, when the grader reports them. Optional: a repo
+   * still running an older grade.py has none, and that must not stop it
+   * being scored the way it always was.
+   */
+  gates?: {
+    build: boolean;
+    tests: boolean;
+    surface: boolean;
+    errors: boolean;
+    met?: number;
+    of?: number;
+    passing?: number;
+    failing?: number;
+    required_passing?: number;
+    new_surface?: string[];
+    new_errors?: string[];
+  };
   notes?: string[];
 }
 

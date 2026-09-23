@@ -38,12 +38,12 @@ export interface Manifest {
 }
 
 export const MANIFESTS: Record<string, Manifest> = {
-    // JavierBonill4/solana-summer-vault @ main — generated 2026-09-17T21:10:57.104Z
+    // JavierBonill4/solana-summer-vault @ main — generated 2026-09-23T16:22:36.246Z
     "vault-limit": {
       "version": 1,
       "locked": {
         ".github/workflows/verify.yml": "b7709a5a9f48858e67ff2b419ead975261752d4c",
-        "grader/grade.py": "303497fa423405f15345b54bbff7a71834161c7c",
+        "grader/grade.py": "ff6cffb8ea73242f2957b4060614ac092083d7b6",
         "programs/lamports-vault/tests/canonical.rs": "203706e9128c47b2c1d106a93e167b59488e9695",
         "Anchor.toml": "1d2c558eae3966f1bca48608c34104b3dfe0433c",
         "Cargo.toml": "f397704811733aec712c2e03e7a6f671c81c2f6b",
