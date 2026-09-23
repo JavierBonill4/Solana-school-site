@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "./Providers";
 import type { Challenge } from "@/lib/types";
+import { SETUP_COMMAND } from "@/lib/setup-check";
 
 const POLL_MS = 20_000;
 const GIVE_UP_MS = 25 * 60 * 1000;
@@ -22,6 +23,8 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
   const { refresh } = useSession();
   const [repo, setRepo] = useState("");
   const [sha, setSha] = useState("");
+  const [output, setOutput] = useState("");
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -59,14 +62,16 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
     setBusy(true);
     setOutcome(null);
 
-    const body = JSON.stringify({
-      challengeId: challenge.id,
-      repoFullName: repo.trim(),
-      // Left out entirely when the challenge is graded on the repo alone.
-      ...((challenge.grading ?? "ci") === "ci"
-        ? { commitSha: sha.trim() }
-        : {}),
-    });
+    const body = JSON.stringify(
+      isPaste
+        ? { challengeId: challenge.id, output }
+        : {
+            challengeId: challenge.id,
+            repoFullName: repo.trim(),
+            // Left out when the challenge is graded on the repo alone.
+            ...(needsCommit ? { commitSha: sha.trim() } : {}),
+          }
+    );
 
     const startedAt = Date.now();
 
@@ -108,9 +113,11 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
     }
   }
 
+  const mode = challenge.grading ?? "ci";
   // Challenges without a grading layer are judged on the repository alone,
   // so asking for a commit SHA would be asking for something we ignore.
-  const needsCommit = (challenge.grading ?? "ci") === "ci";
+  const needsCommit = mode === "ci";
+  const isPaste = mode === "paste";
 
   const ok = outcome?.status === "passed";
   const running = outcome?.status === "running";
@@ -126,55 +133,104 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
       <p style={{ marginTop: 9, fontSize: ".94rem", color: "var(--ink-2)" }}>
         {needsCommit
           ? "Push your branch first and let CI finish. We read the run — we never run your code."
-          : "Automated grading is not wired up for this one yet. Give us your repository and we will check it exists and is public; the work itself is reviewed by hand."}
+          : isPaste
+            ? "Run one command on your own machine and paste what it prints. We read it back to you — anything missing, or a devnet wallet with nothing in it, gets called out."
+            : "Automated grading is not wired up for this one yet. Give us your repository and we will check it exists and is public; the work itself is reviewed by hand."}
       </p>
 
-      <div className="row">
-        <div className="field">
-          <label className="lbl" htmlFor={`repo-${challenge.id}`}>
-            Your fork
-          </label>
-          <input
-            id={`repo-${challenge.id}`}
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            placeholder={
-              challenge.repoFullName
-                ? `you/${challenge.repoFullName.split("/")[1]}`
-                : "you/your-repo"
-            }
+      {isPaste ? (
+        <>
+          <p className="lbl" style={{ marginTop: 16 }}>
+            Step 1 — run this in your terminal
+          </p>
+          <div className="cmd">
+            <code>{SETUP_COMMAND}</code>
+            <button
+              type="button"
+              className="btn quiet"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(SETUP_COMMAND);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1800);
+                } catch {
+                  // Clipboard blocked (http, or permission denied). The
+                  // command is on screen and selectable either way.
+                  setCopied(false);
+                }
+              }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+
+          <p className="lbl" style={{ marginTop: 18 }}>
+            Step 2 — paste everything it printed
+          </p>
+          <textarea
+            className="paste"
+            value={output}
+            onChange={(e) => setOutput(e.target.value)}
+            rows={8}
+            spellCheck={false}
+            placeholder={"rustc: rustc 1.91.0\nsolana: solana-cli 3.0.4\n…"}
             required
           />
-        </div>
-        {needsCommit && (
-          <div className="field" style={{ flex: "0 1 190px" }}>
-            <label className="lbl" htmlFor={`sha-${challenge.id}`}>
-              Commit SHA
+
+          <div className="actions" style={{ marginTop: 14 }}>
+            <button className="btn" disabled={busy || !output.trim()}>
+              {busy ? "Checking…" : "Check my setup"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="row">
+          <div className="field">
+            <label className="lbl" htmlFor={`repo-${challenge.id}`}>
+              Your fork
             </label>
             <input
-              id={`sha-${challenge.id}`}
-              value={sha}
-              onChange={(e) => setSha(e.target.value)}
-              placeholder="3f9a1c8"
+              id={`repo-${challenge.id}`}
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder={
+                challenge.repoFullName
+                  ? `you/${challenge.repoFullName.split("/")[1]}`
+                  : "you/your-repo"
+              }
               required
             />
           </div>
-        )}
-        <button className="btn" disabled={busy || waiting}>
-          {waiting
-            ? "Waiting on CI…"
-            : busy
-              ? "Checking…"
-              : needsCommit
-                ? "Verify run"
-                : "Submit repo"}
-        </button>
-        {waiting && (
-          <button type="button" className="btn quiet" onClick={stop}>
-            Stop watching
+          {needsCommit && (
+            <div className="field" style={{ flex: "0 1 190px" }}>
+              <label className="lbl" htmlFor={`sha-${challenge.id}`}>
+                Commit SHA
+              </label>
+              <input
+                id={`sha-${challenge.id}`}
+                value={sha}
+                onChange={(e) => setSha(e.target.value)}
+                placeholder="3f9a1c8"
+                required
+              />
+            </div>
+          )}
+          <button className="btn" disabled={busy || waiting}>
+            {waiting
+              ? "Waiting on CI…"
+              : busy
+                ? "Checking…"
+                : needsCommit
+                  ? "Verify run"
+                  : "Submit repo"}
           </button>
-        )}
-      </div>
+          {waiting && (
+            <button type="button" className="btn quiet" onClick={stop}>
+              Stop watching
+            </button>
+          )}
+        </div>
+      )}
 
       {outcome && (
         <div

@@ -26,11 +26,14 @@ export interface Challenge {
   /** The upstream to fork. Empty for a challenge that scaffolds its own. */
   repoFullName: string;
   /**
-   * "ci" runs the full verification pipeline. "repo" is the placeholder used
-   * while a challenge has no grading layer yet: it confirms the repository is
-   * real, public and not the starter, and awards the points.
+   * "ci"    runs the full verification pipeline.
+   * "paste" asks the learner to run a command and paste its output, and
+   *         verifies what can be verified from it (see lib/setup-check.ts).
+   * "repo"  is the placeholder used while a challenge has no grading layer
+   *         yet: it confirms the repository is real, public and not the
+   *         starter, and awards the points.
    */
-  grading?: "ci" | "repo";
+  grading?: "ci" | "paste" | "repo";
   pointsCanonical: number;
   pointsMutation: number;
   /**

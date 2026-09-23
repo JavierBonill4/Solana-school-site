@@ -32,7 +32,7 @@ export const CHALLENGES: Challenge[] = [
     tutorialUrl: "https://solana-local-setup.vercel.app/",
     // Nothing to fork — this one scaffolds its own project with `anchor init`.
     repoFullName: "",
-    grading: "repo",
+    grading: "paste",
     pointsCanonical: 100,
     pointsMutation: 0,
     mutationEnabled: false,

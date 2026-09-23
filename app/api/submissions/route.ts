@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/session";
 import { getChallenge } from "@/lib/challenges";
+import { parseSetupOutput, TOOL_LABEL } from "@/lib/setup-check";
+import { createHash } from "crypto";
 import type { Challenge } from "@/lib/types";
 import { getManifest, matchesGlob, sourceChanged } from "@/lib/manifests";
 import bs58 from "bs58";
@@ -32,6 +34,8 @@ interface Body {
   challengeId?: string;
   repoFullName?: string;
   commitSha?: string;
+  /** Terminal output, for challenges graded from a pasted command result. */
+  output?: string;
 }
 
 /**
@@ -119,12 +123,21 @@ export async function POST(req: Request) {
   }
 
   const { challengeId, repoFullName, commitSha } = body;
-  if (!challengeId || !repoFullName) {
-    return reject("Need a challenge and a repo.");
-  }
+  if (!challengeId) return reject("Need a challenge.");
 
   const challenge = getChallenge(challengeId);
   if (!challenge) return reject("No such challenge.", 404);
+
+  // Dispatch on how the challenge is graded BEFORE asking for a repository.
+  // A pasted-output submission has no repo to give, so a repo check up here
+  // rejects it before it reaches the branch that knows what to do with it.
+  if ((challenge.grading ?? "ci") === "paste") {
+    return gradeFromPastedOutput(session.pubkey, challenge, body.output ?? "");
+  }
+
+  if (!repoFullName) {
+    return reject("Need a challenge and a repo.");
+  }
 
   // A challenge with no grading layer yet is judged on the repository alone,
   // and asking for a commit SHA there would be theatre.
@@ -614,6 +627,119 @@ async function gradeOnRepoAlone(ctx: Ctx, challenge: Challenge) {
   return NextResponse.json({
     status: "passed",
     commitSha: ctx.commitSha,
+    pointsAwarded: delta,
+    note:
+      delta > 0
+        ? `${summary} +${delta} points.`
+        : `${summary} No new points — you have already been awarded ${already} for this challenge.`,
+  });
+}
+
+/**
+ * Assignment 01, graded from pasted terminal output.
+ *
+ * Taken on trust, deliberately. Everything here is output the learner
+ * pasted, and faking it only cheats the person who will need these tools for
+ * the next eight assignments. What it does do is read their own output back
+ * to them: a tool the shell could not find, or an unfunded devnet wallet, is
+ * named along with the fix.
+ *
+ * One devnet address still counts once, so a class cannot pass by passing
+ * around a single paste.
+ */
+async function gradeFromPastedOutput(
+  pubkey: string,
+  challenge: Challenge,
+  output: string
+) {
+  const text = (output ?? "").trim();
+  if (!text) {
+    return reject("Paste the output of the command first.");
+  }
+  if (text.length > 20_000) {
+    return reject("That is far more output than the command produces.");
+  }
+
+  const parsed = parseSetupOutput(text);
+
+  // The record is keyed on the address, so one devnet wallet counts once; the
+  // hash of the paste keeps a re-run after fixing something a separate row
+  // rather than an overwrite.
+  const ctx: Ctx = {
+    pubkey,
+    challengeId: challenge.id,
+    repoFullName: parsed.address ? `devnet:${parsed.address}` : "devnet:unknown",
+    commitSha: createHash("sha256").update(text).digest("hex").slice(0, 40),
+  };
+
+  const missing = parsed.tools.filter((t) => !t.ok);
+  if (missing.length > 0) {
+    return rejectAndRecord(
+      ctx,
+      missing.map((t) => t.note).join(" ") +
+        " Install it, re-run the command and paste the output again."
+    );
+  }
+
+  if (!parsed.address) {
+    return rejectAndRecord(
+      ctx,
+      "No wallet address in what you pasted. `solana address` should print one — run `solana-keygen new` if you have not made a keypair yet."
+    );
+  }
+
+  const claimant = await findRepoClaimant(challenge.id, ctx.repoFullName);
+  if (claimant && claimant !== pubkey) {
+    return rejectAndRecord(
+      ctx,
+      "That devnet address has already been submitted by a different wallet."
+    );
+  }
+
+  // An empty devnet wallet is the one thing here worth stopping for: nothing
+  // in the next assignment works without it, and the fix is two steps.
+  if (parsed.balanceSol === 0) {
+    return rejectAndRecord(
+      ctx,
+      `Your devnet wallet is empty. Run \`solana address\`, then paste that address into https://faucet.solana.com/ to fund it — and submit this again once it has SOL.`
+    );
+  }
+
+  const versions = parsed.tools
+    .map((t) => `${TOOL_LABEL[t.tool]} ${t.found}`)
+    .join(" · ");
+  const balanceNote =
+    parsed.balanceSol === null
+      ? "Devnet balance could not be read from your paste."
+      : `Devnet wallet holds ${parsed.balanceSol} SOL.`;
+  const behindNote = parsed.behind.length
+    ? ` ${parsed.behind.map((t) => t.note).join(" ")}`
+    : "";
+  const summary = `${versions} · ${balanceNote}${behindNote}`;
+
+  const points = challenge.pointsCanonical;
+  const already = await getAwardedForChallenge(pubkey, challenge.id);
+
+  await recordSubmission({
+    ...ctx,
+    status: "passed",
+    pointsAwarded: points,
+    reason: summary,
+    resultJson: parsed,
+  });
+
+  for (const row of ledgerDeltas(points, already, challenge.pointsCanonical)) {
+    await appendLedger({
+      pubkey,
+      delta: row.delta,
+      reason: row.reason,
+      challengeId: challenge.id,
+    });
+  }
+
+  const delta = Math.max(0, points - already);
+  return NextResponse.json({
+    status: "passed",
     pointsAwarded: delta,
     note:
       delta > 0

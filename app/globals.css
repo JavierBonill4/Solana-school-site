@@ -1595,3 +1595,46 @@ body:has(.hero) .topbar {
 .quest-card:last-child {
   border-bottom: 1px solid var(--rule);
 }
+
+/* --- pasted-output submission (Assignment 01) ---------------------------- */
+
+.cmd {
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+}
+.cmd code {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: var(--code-ink);
+  /* The command is one long line on purpose — it has to survive being copied
+     into any shell — so let it wrap here rather than scroll sideways. */
+  word-break: break-all;
+  flex: 1;
+}
+.cmd .btn {
+  flex: none;
+}
+
+textarea.paste {
+  margin-top: 8px;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule-2);
+  color: var(--ink);
+  resize: vertical;
+}
+textarea.paste::placeholder {
+  color: var(--ink-3);
+}
