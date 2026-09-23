@@ -50,9 +50,17 @@ jobs:
           avm use 1.1.2
 
       # ── build the learner's program ─────────────────────────────────────
+      # `anchor keys sync` first: the repo declares a program id but cannot
+      # ship its keypair (it is a private key), so a fresh checkout builds a
+      # new random one and `anchor build` then refuses on the mismatch. keys
+      # sync makes declare_id! agree with the keypair that was just generated.
+      # Both edits are to CI's throwaway checkout, so nothing is committed and
+      # the sealed-file check is unaffected.
       - name: anchor build
         id: build
-        run: anchor build
+        run: |
+          anchor keys sync
+          anchor build
 
       # ── fetch the mutant pack (reference.so + the buggy builds) ─────────
       - name: Fetch mutant pack

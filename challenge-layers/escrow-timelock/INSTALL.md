@@ -131,3 +131,58 @@ instead of `>=` — built from the reference solution. Then add the fetch step
 back into `verify.yml` and flip `mutationEnabled: true` in `lib/challenges.ts`.
 `grade.py` needs no edit: it already looks for `.mutants/reference.so` and
 `.mutants/m*.so` and scores them if they are there.
+
+## The four gates
+
+`grade.py` also measures the same four things the vault and fundraiser do, and
+reports them under `gates` in `result.json`:
+
+| Gate | What it means |
+|---|---|
+| `build` | `anchor build` produced an IDL at `target/idl/escrow.json`. |
+| `tests` | The learner's own suite is green with **4+** passing. |
+| `surface` | The IDL gained an instruction, account or field. |
+| `errors` | At least one new `#[error_code]` variant. |
+
+**4, not 14 or 15.** The starter's learner-editable tests are `test_make.rs`
+(1) and `test_cancel.rs` (1) — two — and the tutorial asks for two more. Four.
+`canonical.rs` is ours and sealed, so it does not count toward the learner's
+total. Each bar is derived from its own repo and its own tutorial: do not copy
+a number across challenges.
+
+A correct submission adds `Escrow.createdAt` and at least one error
+(`TimeLockActive`), so the gates line up with what Checkpoint 6 already asks
+for rather than adding new work.
+
+`grader/baseline.json` is a new sealed file holding the starter's surface and
+that test count. **It has to go into the repo alongside grade.py, and the
+manifest regenerated**, or every submission fails the sealed-file check.
+
+Which picture a pass requires is `requires:` on the challenge in
+`lib/challenges.ts` — `"canonical"` (today), `"gates"` or `"both"`. Changing
+it is a redeploy; nothing is pushed here.
+
+## Why the build step runs `anchor keys sync`
+
+The repo declares a program id and deliberately does not ship its keypair — a
+keypair is a private key and has no business in a public repo. A fresh CI
+checkout therefore has no `target/`, so `anchor build` generates a new random
+keypair and then refuses to continue because its pubkey does not match
+`declare_id!`:
+
+```
+Program ID mismatch
+Keypair file has: <random>
+Source code has:  8hVo1qi4VPNuieLP9NFpuUcDA9CLT8aMooo9exCunTQF
+```
+
+Every learner hits this. It is a property of the checkout, not of their work.
+
+`anchor keys sync` rewrites `declare_id!` and `Anchor.toml` to match the
+keypair that was just generated. Both edits land in CI's throwaway working
+copy, so nothing is committed and the sealed-file check is unaffected. The
+program id is arbitrary here anyway — LiteSVM loads the `.so` at whatever
+`escrow::id()` reports.
+
+**Do not commit the keypair instead.** It is a private key, the repo is
+public, and anyone holding it can deploy a program at that address.

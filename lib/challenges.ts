@@ -74,6 +74,7 @@ export const CHALLENGES: Challenge[] = [
     tutorialUrl: "https://solana-escrow-tutorial.vercel.app/",
     repoFullName: "javierbonill4/solana-summer-escrow",
     grading: "ci",
+    requires: "canonical",
     pointsCanonical: 100,
     pointsMutation: 60,
     mutationEnabled: false,

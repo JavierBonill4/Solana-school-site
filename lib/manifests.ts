@@ -82,12 +82,12 @@ export const MANIFESTS: Record<string, Manifest> = {
       }
     },
 
-  // JavierBonill4/solana-summer-escrow @ main — generated 2026-09-17T21:14:13.772Z
+  // JavierBonill4/solana-summer-escrow @ main — generated 2026-09-23T16:50:48.758Z
     "escrow-timelock": {
       "version": 1,
       "locked": {
-        ".github/workflows/verify.yml": "f61bfe1b6bee67363559ad3f9a26b1514f8e6a78",
-        "grader/grade.py": "3f11f59a4e199bc187f7a5d35db551a4b8d04704",
+        ".github/workflows/verify.yml": "a5e10b018b52cdfe7ed8ba1575f7c3b766865e0c",
+        "grader/grade.py": "d4c85b1e60b694f5b8f731fc75d3f6e071811d69",
         "programs/escrow/tests/canonical.rs": "bdf3a6f2c79151c33d6763cc526cc5b408d1527b",
         "Anchor.toml": "bf37cefb0ff8c1c8b3e914d7430efd10576d77f7",
         "Cargo.toml": "f397704811733aec712c2e03e7a6f671c81c2f6b",
