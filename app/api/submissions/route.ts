@@ -503,14 +503,29 @@ export async function POST(req: Request) {
       (g.passing !== undefined ? ` (${g.passing} of your tests passing)` : "")
     : "";
 
-  const summary =
-    (mutantsTotal === 0
-      ? `Canonical ${passed}/${total} · no mutant pack configured, so mutation was not scored`
-      : `Canonical ${passed}/${total} · mutants killed ${killed}/${mutantsTotal}` +
-        (result.reference_check.tests_pass_on_correct_program
-          ? ""
-          : " · your tests fail against the correct program, so mutation scored 0")) +
-    gatesPart;
+  // A gates-only challenge has no canonical suite and no mutant pack, so it
+  // reports 0/0 for both — honestly, but "Canonical 0/0 · no mutant pack
+  // configured" reads as a broken grader rather than a pass. Say what was
+  // actually measured instead.
+  const gatesOnly = challenge.requires === "gates" && total === 0;
+
+  const summary = gatesOnly
+    ? (g
+        ? `Gates ${[g.build, g.tests, g.surface, g.errors].filter(Boolean).length}/4` +
+          ` — builds ${g.build ? "yes" : "no"}, tests ${g.tests ? "green" : "not green"}` +
+          `, IDL grew ${g.surface ? "yes" : "no"}, error wired ${g.errors ? "yes" : "no"}` +
+          (g.passing !== undefined
+            ? ` · ${g.passing} passing, ${g.failing} failing` +
+              (g.required_passing !== undefined ? ` (bar ${g.required_passing})` : "")
+            : "")
+        : "Graded on gates, but this run published no gate report.")
+    : (mutantsTotal === 0
+        ? `Canonical ${passed}/${total} · no mutant pack configured, so mutation was not scored`
+        : `Canonical ${passed}/${total} · mutants killed ${killed}/${mutantsTotal}` +
+          (result.reference_check.tests_pass_on_correct_program
+            ? ""
+            : " · your tests fail against the correct program, so mutation scored 0")) +
+      gatesPart;
 
   // The fork owner is proven at this point — wallet-pubkey in that repo named
   // this wallet, and only the owner can write it. Worth keeping, so the admin

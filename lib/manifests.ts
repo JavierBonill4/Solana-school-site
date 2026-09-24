@@ -165,6 +165,50 @@ export const MANIFESTS: Record<string, Manifest> = {
         "tests/time-window.ts": "bb6331c245396dd1346e8f0b0a26ab384354639b"
       }
     },
+    // JavierBonill4/solana-fall-transfer-hook @ main — generated 2026-09-24T01:59:25.643Z
+    "transfer-hook": {
+      "version": 1,
+      "locked": {
+        ".github/workflows/verify.yml": "e6a9e8da649327eddff31e2a9a1c284ed1e83c70",
+        "grader/grade.py": "36f580365a07cd016666e398e99a1fa9c8391308",
+        "grader/baseline.json": "3de5c650bbe68fae46aaea9cab96f5db3a49e596",
+        "programs/solana-fall-transfer-hook/Cargo.toml": "cbe800192961af3fea7fd8979145c26c5be79fc0",
+        "Cargo.toml": "f397704811733aec712c2e03e7a6f671c81c2f6b",
+        "rust-toolchain.toml": "4849bc9f2b0f2a3f06d678273e12f8ffee17ad8a"
+      },
+      "editable": [
+        "wallet-pubkey",
+        "programs/solana-fall-transfer-hook/src/**",
+        "programs/solana-fall-transfer-hook/tests/helpers/**",
+        "programs/solana-fall-transfer-hook/tests/test_*.rs",
+        "Anchor.toml",
+        "Cargo.lock",
+        "migrations/**",
+        "package.json",
+        "yarn.lock",
+        "tsconfig.json",
+        "README.md",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "baseline": {
+        "programs/solana-fall-transfer-hook/src/constants.rs": "d0b85d4852a8c24b0ebc016ba3b3bd6cc336f214",
+        "programs/solana-fall-transfer-hook/src/error.rs": "340561d740fc9aa3da33a65283cf560aa5946dcb",
+        "programs/solana-fall-transfer-hook/src/instructions/init_extra_account_meta.rs": "2b2278e5167544fb452232790e61a20858d59027",
+        "programs/solana-fall-transfer-hook/src/instructions/initialize.rs": "1cfc5a0751ec44e3765f6f4ffee98ebd859b0f99",
+        "programs/solana-fall-transfer-hook/src/instructions/initialize_mint.rs": "2e11706938ff4b21313de2f0d4c392c5d9195b92",
+        "programs/solana-fall-transfer-hook/src/instructions/mod.rs": "7b6b9b6f19c925efae607f35d0efd7c748ecaeed",
+        "programs/solana-fall-transfer-hook/src/instructions/transfer.rs": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "programs/solana-fall-transfer-hook/src/instructions/transfer_hook.rs": "3f76868a8314dbff2c8219adaa98f19c9ad5c47f",
+        "programs/solana-fall-transfer-hook/src/lib.rs": "c1a45cc1a891a3048694619c42692b427bf8772e",
+        "programs/solana-fall-transfer-hook/src/state/mod.rs": "96e0edd31338164b714231e83ecc047886387305",
+        "programs/solana-fall-transfer-hook/src/state/rate_limit.rs": "9ca92f976c2dcf645543fc9f8f7bb7d3882beff2",
+        "programs/solana-fall-transfer-hook/tests/helpers/mod.rs": "d7facdeb5408a14287b7651f9dc9affc3968cdc1",
+        "programs/solana-fall-transfer-hook/tests/test_init_extra_account_meta.rs": "59f73b27a4ae09753c5f012f5d288a15ba434f94",
+        "programs/solana-fall-transfer-hook/tests/test_initialize.rs": "ec3f407483995c14758cf221726e20073dd5bf90",
+        "programs/solana-fall-transfer-hook/tests/test_transfer_hook.rs": "7f19cb0f8dde264a7377c89229939dbd3a6b34d4"
+      }
+    },
 };
 
 export function getManifest(challengeId: string): Manifest | null {

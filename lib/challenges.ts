@@ -111,8 +111,19 @@ export const CHALLENGES: Challenge[] = [
     stack: "Anchor 1.2 · Token-2022 · LiteSVM",
     checkpoints: 6,
     tutorialUrl: "https://transfer-hook-guide-week-2-day2.vercel.app/",
-    repoFullName: "decentra1ized/solana-fall-transfer-hook",
-    grading: "repo",
+    // Our fork, with the grading layer installed. Learners fork THIS one;
+    // decentra1ized's upstream has no grader/ and no workflow, so a fork of it
+    // publishes nothing for the site to read.
+    repoFullName: "javierbonill4/solana-fall-transfer-hook",
+    grading: "ci",
+    // Gates only. There is no canonical suite here and no mutant pack: the
+    // assignment is open-ended enough that "the one correct implementation"
+    // does not exist, so the grader asks whether it builds, whether the
+    // learner's own suite is green and larger, whether the IDL grew, and
+    // whether a declared error is returned somewhere the starter returned
+    // none. grade.py still emits the canonical/mutation fields as 0/0 so the
+    // site reads one result shape for every challenge.
+    requires: "gates",
     pointsCanonical: 100,
     pointsMutation: 0,
     mutationEnabled: false,

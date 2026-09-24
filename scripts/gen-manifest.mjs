@@ -30,6 +30,47 @@ const PROFILES = {
   "escrow-timelock": { program: "escrow" },
   // "token22-identity": { program: "<dir under programs/>" },
 
+  // The transfer hook does not fit the derived shape either, for its own
+  // reasons: there is no sealed canonical suite (the grader is gates-only, so
+  // nothing is canonical), the learner's tests live beside a `helpers/` module
+  // they are expected to extend, and Anchor.toml has to stay editable because
+  // the starter ships a declare_id! whose keypair it does not ship — so every
+  // learner runs `anchor keys sync`, which rewrites it.
+  //
+  // Cargo.lock is editable while both Cargo.toml files are locked. A lockfile
+  // cannot introduce a dependency that no manifest names, so pinning it buys
+  // nothing and costs a rejection every time `anchor build` refreshes it.
+  "transfer-hook": {
+    program: "solana-fall-transfer-hook",
+    locked: [
+      ".github/workflows/verify.yml",
+      "grader/grade.py",
+      "grader/baseline.json",
+      "programs/solana-fall-transfer-hook/Cargo.toml",
+      "Cargo.toml",
+      "rust-toolchain.toml",
+    ],
+    editable: [
+      "wallet-pubkey",
+      "programs/solana-fall-transfer-hook/src/**",
+      "programs/solana-fall-transfer-hook/tests/helpers/**",
+      "programs/solana-fall-transfer-hook/tests/test_*.rs",
+      "Anchor.toml",
+      "Cargo.lock",
+      "migrations/**",
+      "package.json",
+      "yarn.lock",
+      "tsconfig.json",
+      "README.md",
+      ".gitignore",
+      ".gitattributes",
+    ],
+    source: [
+      "programs/solana-fall-transfer-hook/src/**",
+      "programs/solana-fall-transfer-hook/tests/**",
+    ],
+  },
+
   // The fundraiser does not fit the derived shape, because the assignment is
   // different in kind: there is no sealed canonical suite (nothing is
   // canonical when the learner picks the feature), the tests are TypeScript at
