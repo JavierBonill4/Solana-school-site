@@ -13,8 +13,8 @@ export default function ProfilePage() {
         </div>
         <h1>Who you are here.</h1>
         <p className="deck">
-          Your wallet is your account. Everything on this page is optional —
-          it only changes how you appear and how a roster finds you.
+          Your wallet is your account. Adding your username
+          changes how you appear and how a roster finds you.
         </p>
       </header>
 

@@ -72,12 +72,21 @@ def idl_surface(idl: dict) -> tuple[dict, dict, dict]:
     return instructions, accounts, errors
 
 
-def run_tests(targets: list[str], timeout: int = 1500):
-    """Returns (ok, passed, failed, compiled, output)."""
-    cmd = ["cargo", "test", "--quiet"]
-    for t in targets:
-        cmd += ["--test", t]
-    cmd += ["--", "--test-threads=1"]
+def run_tests(timeout: int = 1800):
+    """
+    Run every test in the workspace. Returns (ok, passed, failed, compiled, out).
+
+    `--workspace`, not a list of `--test` targets, and that is load-bearing.
+    Challenge 4 has learners run `anchor new token-mover`, which adds a SECOND
+    package to the workspace. Naming targets means anything they put in the new
+    package is invisible to the count — and `cargo test --test <name>` is
+    ambiguous across packages anyway once there are two.
+
+    Unit tests in src/ and doc-tests report their own `test result:` lines and
+    are summed too. That is the intent: the gate asks whether the learner wrote
+    more tests, not where they filed them.
+    """
+    cmd = ["cargo", "test", "--workspace", "--quiet", "--", "--test-threads=1"]
     try:
         proc = subprocess.run(
             cmd, cwd=ROOT, capture_output=True, text=True, timeout=timeout
@@ -120,7 +129,6 @@ def main() -> int:
 
     program_so = ROOT / "target" / "deploy" / f"{lib_name}.so"
     idl_path = ROOT / "target" / "idl" / f"{lib_name}.json"
-    tests_dir = ROOT / "programs" / program_dir / "tests"
     src_dir = ROOT / "programs" / program_dir / "src"
 
     gates = {"build": False, "tests": False, "surface": False, "errors": False}
@@ -140,17 +148,19 @@ def main() -> int:
 
     # ── tests: yours, on your program ────────────────────────────────────
     #
-    # Discovered, not hardcoded. Cargo treats each top-level `tests/*.rs` as
-    # its own target, so a file you add is picked up without anyone being told
-    # to add it to a list. `tests/helpers/mod.rs` is a module rather than a
-    # target, so it is correctly not matched.
-    learner = sorted(f.stem for f in tests_dir.glob("*.rs"))
+    # Every `tests/*.rs` in every workspace package, discovered rather than
+    # listed. `tests/helpers/mod.rs` is a module rather than a target, so it is
+    # correctly not matched, and a second package's tests/ — Challenge 4 adds
+    # one — is found without anyone being told to register it.
+    test_files = sorted(
+        f for f in (ROOT / "programs").glob("*/tests/*.rs") if f.is_file()
+    )
     wanted = base["test_count"] + base["new_tests_required"]
 
-    if not learner:
+    if not test_files:
         notes.append(f"No test files found in programs/{program_dir}/tests/.")
     else:
-        _ok, passed, failed, compiled, out = run_tests(learner)
+        _ok, passed, failed, compiled, out = run_tests()
         if not compiled:
             notes.append("Your tests do not compile against your program.")
             for line in out.splitlines():

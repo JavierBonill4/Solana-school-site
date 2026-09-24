@@ -1,0 +1,158 @@
+# Solana School grader — Pinocchio Escrow.
+#
+# SEALED. The submission checker compares this file's blob SHA against the
+# upstream copy. Editing it fails your submission before anything is read.
+#
+# It runs in YOUR fork, on YOUR free Actions minutes. Nothing here uploads
+# your source anywhere, and the site never executes it — it only reads the
+# result this job publishes.
+#
+# This assignment has no canonical suite and no mutant pack. grade.py checks
+# four things: it builds, your own tests are green and there are more of them
+# than the starter ships, Take and Cancel are dispatched, and MakeV2 is
+# rejected explicitly instead of falling into a `_ =>` arm.
+
+name: verify
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run per branch at a time. Not cancel-in-progress: a run already going
+# may be the one somebody is about to submit, and cancelling it makes that
+# commit ungradeable until they dispatch it again by hand.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Grade forks, not the starter.
+    #
+    # The starter passes one of the four gates by definition, so grading it
+    # would park a permanent red X on the repository every student clones —
+    # which reads as "the starter is broken". Dispatch it by hand from the
+    # Actions tab to smoke-test the grader against upstream.
+    if: github.event.repository.fork || github.event_name == 'workflow_dispatch'
+
+    env:
+      CHALLENGE_ID: pinocchio-escrow
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The repo ships no rust-toolchain.toml, so the host toolchain is pinned
+      # here instead. It only builds the TEST binary (LiteSVM and friends);
+      # the program itself is built by the platform-tools Rust below.
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # Agave pinned to a release tarball and checked by hash, not the
+      # `stable` installer. Two reasons:
+      #
+      #  * `stable` moves. The grader should not change behaviour under a
+      #    learner between two pushes of the same code.
+      #  * 3.1.x selects platform-tools v1.52, whose Cargo (1.89) parses the
+      #    edition-2024 manifests in this Cargo.lock. The 3.0.x line selects
+      #    v1.51 (Cargo 1.84) and dies in dependency resolution — the problem
+      #    the transfer-hook workflow works around by seeding the cache by
+      #    hand. Pinning a release that does not have it is simpler.
+      - name: Install Agave 3.1.14 (cargo-build-sbf)
+        env:
+          AGAVE_URL: https://github.com/anza-xyz/agave/releases/download/v3.1.14/solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          AGAVE_SHA256: 06f97c065cc977cbec2f13ffc9bc9d3b92fef485431fcb370a269de69532ef51
+        run: |
+          curl -sSfL --retry 3 -o /tmp/agave.tar.bz2 "$AGAVE_URL"
+          echo "$AGAVE_SHA256  /tmp/agave.tar.bz2" | sha256sum -c -
+          mkdir -p "$HOME/.local/share/agave"
+          tar xjf /tmp/agave.tar.bz2 -C "$HOME/.local/share/agave"
+          echo "$HOME/.local/share/agave/solana-release/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/share/agave/solana-release/bin/cargo-build-sbf" --version
+
+      # cargo-build-sbf downloads the Solana platform-tools toolchain on its
+      # first run — a few hundred megabytes that are identical every time.
+      - name: Cache Solana platform-tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/solana
+          key: solana-platform-tools-${{ runner.os }}-v1.52
+
+      # -- build the learner's program --------------------------------------
+      #
+      # target/deploy is cleared first. rust-cache restores target/ between
+      # runs, and a stale escrow.so from an earlier green commit would let a
+      # build that FAILS on this commit still pass the build gate — and let
+      # the tests run against a program that is not the one submitted.
+      #
+      # No `keys sync`, unlike the Anchor assignments: Pinocchio's
+      # declare_id! is a constant, and the tests load the .so into LiteSVM at
+      # crate::ID, so the keypair cargo-build-sbf generates is never used.
+      #
+      # continue-on-error so a build failure still reaches grade.py, which
+      # writes a result.json saying the build gate failed. A red run with no
+      # artifact is a submission the site cannot read at all.
+      - name: cargo build-sbf
+        id: build
+        continue-on-error: true
+        run: |
+          rm -rf target/deploy
+          cargo build-sbf
+
+      # No Node, no validator: the tests are Rust and drive the program
+      # through LiteSVM in-process, reading target/deploy/escrow.so from the
+      # build above.
+      - name: Grade
+        run: python3 grader/grade.py
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # The site looks for this exact artifact name (RESULT_ARTIFACT in
+          # lib/grader-result.ts). Same across every challenge — do not rename.
+          name: solana-summer-result
+          path: result.json
+          if-no-files-found: error
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f result.json ]; then
+            python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          r = json.load(open("result.json"))
+          g = r["gates"]
+          label = {
+              "build": "build — `cargo build-sbf` produced escrow.so",
+              "tests": "tests — your suite green, at the bar",
+              "surface": "surface — Take and Cancel dispatched",
+              "errors": "errors — MakeV2 rejected, no `_ =>`",
+          }
+          print("## Solana School — " + r["challenge"])
+          print()
+          print(f"**Gates met:** {g['met']}/{g['of']}")
+          print()
+          print("| gate | |")
+          print("| --- | --- |")
+          for k in ("build", "tests", "surface", "errors"):
+              print(f"| {label[k]} | {'PASS' if g[k] else 'FAIL'} |")
+          print()
+          print(f"**Tests:** {g['passing']} passing, {g['failing']} failing "
+                f"(bar is {g['required_passing']})")
+          print()
+          if r["notes"]:
+              print("### Notes")
+              for n in r["notes"]:
+                  print(f"- {n}")
+          PY
+          fi

@@ -513,7 +513,7 @@ export async function POST(req: Request) {
     ? (g
         ? `Gates ${[g.build, g.tests, g.surface, g.errors].filter(Boolean).length}/4` +
           ` — builds ${g.build ? "yes" : "no"}, tests ${g.tests ? "green" : "not green"}` +
-          `, IDL grew ${g.surface ? "yes" : "no"}, error wired ${g.errors ? "yes" : "no"}` +
+          `, new surface ${g.surface ? "yes" : "no"}, error check ${g.errors ? "yes" : "no"}` +
           (g.passing !== undefined
             ? ` · ${g.passing} passing, ${g.failing} failing` +
               (g.required_passing !== undefined ? ` (bar ${g.required_passing})` : "")

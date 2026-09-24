@@ -141,8 +141,16 @@ export const CHALLENGES: Challenge[] = [
     stack: "Pinocchio 0.11 · LiteSVM · cargo build-sbf",
     checkpoints: 7,
     tutorialUrl: "https://pinocchio-escrow-guide-3-day1.vercel.app/",
-    repoFullName: "decentra1ized/solana-fall-pescrow",
-    grading: "repo",
+    // Our fork, with the grading layer installed. Learners fork THIS one;
+    // decentra1ized's upstream has no grader/ and no workflow.
+    repoFullName: "javierbonill4/solana-fall-pescrow",
+    grading: "ci",
+    // Gates only, like the transfer hook. Pinocchio has no IDL and no
+    // #[error_code], so two gates are read from the dispatch match instead:
+    // `surface` = Take and Cancel are routed to handlers, `errors` = MakeV2
+    // is rejected explicitly with no `_ =>` arm (the guide's checkpoint 05).
+    // See challenge-layers/pinocchio-escrow/INSTALL.md.
+    requires: "gates",
     pointsCanonical: 100,
     pointsMutation: 0,
     mutationEnabled: false,

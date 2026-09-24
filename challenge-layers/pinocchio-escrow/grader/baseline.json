@@ -1,0 +1,15 @@
+{
+  "_comment": "SEALED. The starter's dispatch table and test count, as it ships. grade.py compares the learner's program against this. There is no IDL here: Pinocchio has no framework to emit one, so the program's surface is read from its instruction dispatch instead.",
+  "challenge": "pinocchio-escrow",
+  "crate": "escrow",
+  "instruction_enum": "EscrowInstructions",
+  "variants": ["Make", "Take", "Cancel", "MakeV2"],
+  "_routed_note": "Variants whose dispatch arm calls a handler. The starter routes Make only; Take and Cancel fall through `_ =>` into InvalidInstructionData. Challenges 1 and 2 route both.",
+  "routed": ["Make"],
+  "must_route": ["Take", "Cancel"],
+  "_rejected_note": "Checkpoint 05: no `_ =>` arm in the dispatch match, and MakeV2 answered with an explicit error of its own. The starter has the wildcard, which is exactly what the guide asks learners to remove.",
+  "must_reject": ["MakeV2"],
+  "_test_count_note": "The starter reports 2 passing: test_make_instruction, plus test_id, which declare_id! generates. Challenge 3 asks for four more (Take, Cancel, underfunded Take, stranger's Cancel), so the bar is 6. Five real tests, which is what the guide's definition of done says.",
+  "test_count": 2,
+  "new_tests_required": 4
+}

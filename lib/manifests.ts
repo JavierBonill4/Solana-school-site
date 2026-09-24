@@ -165,23 +165,23 @@ export const MANIFESTS: Record<string, Manifest> = {
         "tests/time-window.ts": "bb6331c245396dd1346e8f0b0a26ab384354639b"
       }
     },
-    // JavierBonill4/solana-fall-transfer-hook @ main — generated 2026-09-24T01:59:25.643Z
+    // JavierBonill4/solana-fall-transfer-hook @ main — generated 2026-09-24T14:32:34.791Z
     "transfer-hook": {
       "version": 1,
       "locked": {
         ".github/workflows/verify.yml": "e6a9e8da649327eddff31e2a9a1c284ed1e83c70",
         "grader/grade.py": "36f580365a07cd016666e398e99a1fa9c8391308",
         "grader/baseline.json": "3de5c650bbe68fae46aaea9cab96f5db3a49e596",
-        "programs/solana-fall-transfer-hook/Cargo.toml": "cbe800192961af3fea7fd8979145c26c5be79fc0",
-        "Cargo.toml": "f397704811733aec712c2e03e7a6f671c81c2f6b",
         "rust-toolchain.toml": "4849bc9f2b0f2a3f06d678273e12f8ffee17ad8a"
       },
       "editable": [
         "wallet-pubkey",
-        "programs/solana-fall-transfer-hook/src/**",
-        "programs/solana-fall-transfer-hook/tests/helpers/**",
-        "programs/solana-fall-transfer-hook/tests/test_*.rs",
+        "programs/*/Cargo.toml",
+        "programs/*/Xargo.toml",
+        "programs/*/src/**",
+        "programs/*/tests/**",
         "Anchor.toml",
+        "Cargo.toml",
         "Cargo.lock",
         "migrations/**",
         "package.json",
@@ -189,7 +189,8 @@ export const MANIFESTS: Record<string, Manifest> = {
         "tsconfig.json",
         "README.md",
         ".gitignore",
-        ".gitattributes"
+        ".gitattributes",
+        ".prettierignore"
       ],
       "baseline": {
         "programs/solana-fall-transfer-hook/src/constants.rs": "d0b85d4852a8c24b0ebc016ba3b3bd6cc336f214",
@@ -207,6 +208,36 @@ export const MANIFESTS: Record<string, Manifest> = {
         "programs/solana-fall-transfer-hook/tests/test_init_extra_account_meta.rs": "59f73b27a4ae09753c5f012f5d288a15ba434f94",
         "programs/solana-fall-transfer-hook/tests/test_initialize.rs": "ec3f407483995c14758cf221726e20073dd5bf90",
         "programs/solana-fall-transfer-hook/tests/test_transfer_hook.rs": "7f19cb0f8dde264a7377c89229939dbd3a6b34d4"
+      }
+    },
+    // JavierBonill4/solana-fall-pescrow @ main — generated 2026-09-24T18:46:03.492Z
+    "pinocchio-escrow": {
+      "version": 1,
+      "locked": {
+        ".github/workflows/verify.yml": "86371625156629b3b46fff66a95ef09f9a69d97f",
+        "grader/grade.py": "51e594950de0733dd8f5c2254913226773072a1c",
+        "grader/baseline.json": "9520d4c5d2377fb7323953d92fd922ab50e0d2bd",
+        "Cargo.toml": "b00af8681d430ff1a68e637e7ef3a1b291f02062"
+      },
+      "editable": [
+        "wallet-pubkey",
+        "src/**",
+        "tests/**",
+        "Cargo.lock",
+        "README.md",
+        ".gitignore",
+        ".gitattributes",
+        ".DS_Store",
+        "**/.DS_Store",
+        "result.json"
+      ],
+      "baseline": {
+        "src/instructions/make.rs": "485ad2bc2b3fd07e85cb204861d5a5e0e3939289",
+        "src/instructions/mod.rs": "d03480645b0f754e7c2f4685a3fc361be7639b3d",
+        "src/lib.rs": "97ff9360f44c91fcb938b55a3a159e61cbcdbcef",
+        "src/state/escrow.rs": "9c6701eca9c3bb7d54595eefe68031dc3d8b7f2a",
+        "src/state/mod.rs": "8078a315f53f5d9d32d96a42d9960ef106fd1c9b",
+        "src/tests/mod.rs": "e95dc62f3e3cd560f71f3b210a8fcec0191bb3db"
       }
     },
 };

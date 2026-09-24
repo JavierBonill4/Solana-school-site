@@ -42,20 +42,35 @@ const PROFILES = {
   // nothing and costs a rejection every time `anchor build` refreshes it.
   "transfer-hook": {
     program: "solana-fall-transfer-hook",
+    // Only the grader is sealed, and that is the honest line for a gates-only
+    // challenge: nothing else here decides the grade. There is no canonical
+    // suite to protect and no mutant pack to keep a learner away from — the
+    // gates measure the learner's own build, their own tests and their own
+    // IDL, so sealing their build inputs would buy integrity that is not at
+    // risk and cost rejections that are.
     locked: [
       ".github/workflows/verify.yml",
       "grader/grade.py",
       "grader/baseline.json",
-      "programs/solana-fall-transfer-hook/Cargo.toml",
-      "Cargo.toml",
       "rust-toolchain.toml",
     ],
     editable: [
       "wallet-pubkey",
-      "programs/solana-fall-transfer-hook/src/**",
-      "programs/solana-fall-transfer-hook/tests/helpers/**",
-      "programs/solana-fall-transfer-hook/tests/test_*.rs",
+      // `programs/*/...`, not `programs/solana-fall-transfer-hook/...`.
+      // Challenge 4 has learners run `anchor new token-mover`, so a SECOND
+      // program directory appears, and its name is the guide's suggestion
+      // rather than a requirement. Matching any directory keeps that from
+      // being a rejection — but only its Cargo.toml, src/ and tests/, so a
+      // build.rs or a .cargo/config.toml still has nowhere to land.
+      "programs/*/Cargo.toml",
+      "programs/*/Xargo.toml",
+      "programs/*/src/**",
+      "programs/*/tests/**",
+      // Rewritten by `anchor keys sync`, which every learner runs — the
+      // starter declares a program id whose keypair it cannot ship — and
+      // again by `anchor new`, which registers the second program.
       "Anchor.toml",
+      "Cargo.toml",
       "Cargo.lock",
       "migrations/**",
       "package.json",
@@ -64,6 +79,7 @@ const PROFILES = {
       "README.md",
       ".gitignore",
       ".gitattributes",
+      ".prettierignore",
     ],
     source: [
       "programs/solana-fall-transfer-hook/src/**",
@@ -71,44 +87,44 @@ const PROFILES = {
     ],
   },
 
-  // The fundraiser does not fit the derived shape, because the assignment is
-  // different in kind: there is no sealed canonical suite (nothing is
-  // canonical when the learner picks the feature), the tests are TypeScript at
-  // the repo root rather than Rust beside the program, and Anchor.toml has to
-  // stay editable because `anchor keys sync` rewrites it — the starter ships a
-  // declare_id! whose keypair it does not ship, so every learner runs it.
+  // Pinocchio has no Anchor workspace: one crate at the repo root, source in
+  // src/, tests as a unit-test module in src/tests/. So nothing lives under
+  // programs/ and the derived profile would pin files that do not exist.
   //
-  // What stays sealed is the part that decides the grade: the workflow, the
-  // grader, and the baseline surface it diffs against.
-  "fundraiser-feature": {
-    program: "fundraiser",
+  // Gates only, like the transfer hook, so only the grader is sealed — plus
+  // Cargo.toml. Learners have no reason to touch it (the guide pins every
+  // crate version), and locking it closes `build = "src/…"`, which would
+  // otherwise let a build script ride in through the editable src/ glob.
+  //
+  // .DS_Store is editable because the upstream ships one at the root, and
+  // every macOS learner will commit more. Better an allowed junk file than a
+  // rejection nobody can explain.
+  "pinocchio-escrow": {
+    program: "escrow",
     locked: [
       ".github/workflows/verify.yml",
       "grader/grade.py",
       "grader/baseline.json",
+      "Cargo.toml",
     ],
     editable: [
       "wallet-pubkey",
-      "programs/fundraiser/**",
+      "src/**",
+      // Cargo also discovers integration tests in a top-level tests/. The
+      // guide keeps them in src/tests/, but either is fine for the count.
       "tests/**",
-      "migrations/**",
-      // Rewritten by `anchor keys sync`. Its [scripts] test line is therefore
-      // editable too, which is why grade.py overwrites that line with a pinned
-      // command before running the suite instead of trusting it.
-      "Anchor.toml",
-      "Cargo.toml",
       "Cargo.lock",
-      // A feature may need a dependency — an NFT receipt needs Metaplex.
-      "package.json",
-      "yarn.lock",
-      "tsconfig.json",
-      "readme.MD",
       "README.md",
       ".gitignore",
       ".gitattributes",
-      ".prettierignore",
+      ".DS_Store",
+      "**/.DS_Store",
+      // Written by `python3 grader/grade.py` when a learner runs it locally,
+      // and swept up by `git add -A`. The site reads the CI artifact, never
+      // this file, so a committed copy is noise rather than a threat.
+      "result.json",
     ],
-    source: ["programs/fundraiser/src/**", "tests/**"],
+    source: ["src/**", "tests/**"],
   },
 };
 
