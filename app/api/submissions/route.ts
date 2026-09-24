@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { readSession } from "@/lib/session";
 import { getChallenge } from "@/lib/challenges";
 import { parseSetupOutput, TOOL_LABEL } from "@/lib/setup-check";
+import { judgeSoulbound } from "@/lib/core-asset";
+import { lookupCoreAsset } from "@/lib/core-asset.server";
 import { createHash } from "crypto";
 import type { Challenge } from "@/lib/types";
 import { getManifest, matchesGlob, sourceChanged } from "@/lib/manifests";
@@ -41,6 +43,8 @@ interface Body {
   commitSha?: string;
   /** Terminal output, for challenges graded from a pasted command result. */
   output?: string;
+  /** A devnet address (or explorer link), for challenges graded on-chain. */
+  asset?: string;
 }
 
 /**
@@ -138,6 +142,9 @@ export async function POST(req: Request) {
   // rejects it before it reaches the branch that knows what to do with it.
   if ((challenge.grading ?? "ci") === "paste") {
     return gradeFromPastedOutput(session.pubkey, challenge, body.output ?? "");
+  }
+  if (challenge.grading === "chain") {
+    return gradeFromChain(session.pubkey, challenge, body.asset ?? "");
   }
 
   if (!repoFullName) {
@@ -772,6 +779,165 @@ async function gradeFromPastedOutput(
   const delta = Math.max(0, points - already);
   return NextResponse.json({
     status: "passed",
+    pointsAwarded: delta,
+    note:
+      delta > 0
+        ? `${summary} +${delta} points.`
+        : `${summary} No new points — you have already been awarded ${already} for this challenge.`,
+  });
+}
+
+const BASE58_ADDRESS = /[1-9A-HJ-NP-Za-km-z]{32,44}/;
+
+/**
+ * Assignment 08, graded from devnet.
+ *
+ * The easy track forks nothing and opens no pull request: the work is a
+ * Metaplex Core asset on devnet, and the guide's own deliverable is its
+ * explorer link. So that is what is submitted, and the account is read back
+ * directly. Nothing is executed and nothing is signed — one getAccountInfo.
+ *
+ * What binds the asset to THIS learner is its owner. The asset has to be
+ * minted to the wallet they sign in here with (one extra line in create():
+ * `owner: publicKey("<wallet>")`). Because the asset is soulbound, that is
+ * unusually strong proof: it can never have been transferred in from
+ * somebody else, and it can never be passed on to anyone after.
+ *
+ * Checks, in order, first failure wins:
+ *   1. the address is a Core asset on devnet
+ *   2. its owner is the signed-in wallet
+ *   3. the NAME was changed from the starter's "CHANGE ME"
+ *   4. PermanentFreezeDelegate, frozen, authority None — and no transfer or
+ *      burn delegate on it or its collection that would reopen the door
+ */
+async function gradeFromChain(pubkey: string, challenge: Challenge, input: string) {
+  const text = (input ?? "").trim();
+  // Accept the explorer link the guide tells them to submit, or a bare
+  // address. `/address/<x>` first, so a pasted link does not match the
+  // cluster name or some other base58-looking fragment.
+  const fromLink = text.match(new RegExp(`/address/(${BASE58_ADDRESS.source})`));
+  const address = fromLink?.[1] ?? text.match(new RegExp(`^${BASE58_ADDRESS.source}$`))?.[0];
+
+  let valid = false;
+  if (address) {
+    try {
+      valid = bs58.decode(address).length === 32;
+    } catch {
+      valid = false;
+    }
+  }
+  if (!address || !valid) {
+    return reject(
+      "Paste your asset's address, or its explorer link: https://explorer.solana.com/address/<ASSET>?cluster=devnet"
+    );
+  }
+  if (/[?&]cluster=(mainnet|testnet)/i.test(text)) {
+    return reject("That link points at a cluster other than devnet. The asset has to be on devnet.");
+  }
+
+  const explorer = `https://explorer.solana.com/address/${address}?cluster=devnet`;
+  const ctx: Ctx = {
+    pubkey,
+    challengeId: challenge.id,
+    repoFullName: `devnet:${address}`,
+    // base58 is case-sensitive, so this is NOT lower-cased the way a SHA is.
+    commitSha: address,
+  };
+
+  const existing = await findSubmission(pubkey, challenge.id, address);
+  if (existing && existing.status === "passed") {
+    return NextResponse.json({
+      status: "passed",
+      runUrl: existing.runUrl,
+      pointsAwarded: existing.pointsAwarded,
+      note: "That asset was already graded.",
+    });
+  }
+
+  // Belt and braces: the owner check below already makes an asset
+  // unclaimable by a second wallet, but say it plainly if it happens.
+  const claimant = await findRepoClaimant(challenge.id, ctx.repoFullName);
+  if (claimant && claimant !== pubkey) {
+    return rejectAndRecord(ctx, "That asset has already been submitted by a different wallet.");
+  }
+
+  // 1 — read it.
+  const found = await lookupCoreAsset(address);
+  if (!found.ok) {
+    // An RPC hiccup is ours, not theirs: answer without writing a failed
+    // attempt into their portfolio.
+    if (found.transient) return reject(found.reason, 503);
+    return rejectAndRecord(ctx, found.reason);
+  }
+  const { asset, collection } = found;
+  const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
+
+  // 2 — whose is it.
+  if (asset.owner !== pubkey) {
+    return rejectAndRecord(
+      ctx,
+      `That asset is owned by ${short(asset.owner)}, but you are signed in as ${short(pubkey)}. ` +
+        `Mint it to the wallet you use on this site: in create(), add owner: publicKey("${pubkey}"). ` +
+        "A soulbound asset can never be moved to you afterwards, so it has to be minted to you."
+    );
+  }
+
+  // 3 — the starter's placeholder name. The guide asks for their name in it;
+  // we cannot check that it IS their name, only that they changed it.
+  if (!asset.name.trim() || /^change me$/i.test(asset.name.trim())) {
+    return rejectAndRecord(
+      ctx,
+      `The asset is still named "${asset.name}". Set NAME to something with your name or nickname in it and mint again.`
+    );
+  }
+
+  // 4 — actually soulbound.
+  const verdict = judgeSoulbound(asset, collection);
+  if (!verdict.ok) {
+    return rejectAndRecord(ctx, verdict.problems.join(" "));
+  }
+
+  const summary =
+    `"${asset.name}" — Core asset owned by ${short(pubkey)}, PermanentFreezeDelegate frozen with authority None. ` +
+    "Nobody can ever thaw it, so it can never leave this wallet.";
+
+  const points = challenge.pointsCanonical;
+  const already = await getAwardedForChallenge(pubkey, challenge.id);
+
+  await recordSubmission({
+    ...ctx,
+    runUrl: explorer,
+    status: "passed",
+    pointsAwarded: points,
+    reason: summary,
+    resultJson: {
+      asset: address,
+      name: asset.name,
+      uri: asset.uri,
+      owner: asset.owner,
+      updateAuthority: asset.updateAuthority,
+      plugins: asset.plugins.map((p) => ({
+        type: p.type,
+        authority: p.authority.type,
+        frozen: p.frozen,
+      })),
+      collection: collection ? collection.name : null,
+    },
+  });
+
+  for (const row of ledgerDeltas(points, already, challenge.pointsCanonical)) {
+    await appendLedger({
+      pubkey,
+      delta: row.delta,
+      reason: row.reason,
+      challengeId: challenge.id,
+    });
+  }
+
+  const delta = Math.max(0, points - already);
+  return NextResponse.json({
+    status: "passed",
+    runUrl: explorer,
     pointsAwarded: delta,
     note:
       delta > 0

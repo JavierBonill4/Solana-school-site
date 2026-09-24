@@ -124,7 +124,7 @@ export function ChallengesList() {
                         className="mono"
                         style={{ fontSize: ".82rem" }}
                       >
-                        CI run →
+                        {sub.runUrl.includes("explorer.solana.com") ? "Explorer →" : "CI run →"}
                       </a>
                     )}
                   </div>

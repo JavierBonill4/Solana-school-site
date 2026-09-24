@@ -32,8 +32,11 @@ export interface Challenge {
    * "repo"  is the placeholder used while a challenge has no grading layer
    *         yet: it confirms the repository is real, public and not the
    *         starter, and awards the points.
+   * "chain" takes the address of something the learner put on devnet and
+   *         reads it back (see lib/core-asset.ts). No repository, no CI: the
+   *         account is the work, and nobody can edit it after the fact.
    */
-  grading?: "ci" | "paste" | "repo";
+  grading?: "ci" | "paste" | "repo" | "chain";
   /**
    * For "ci" challenges, what a pass has to satisfy. The grader measures
    * everything either way and reports both pictures, so this is the admin

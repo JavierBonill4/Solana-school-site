@@ -191,7 +191,12 @@ export const CHALLENGES: Challenge[] = [
     checkpoints: 7,
     tutorialUrl: "https://metaplex-core-guide.vercel.app/",
     repoFullName: "ASCorreia/fall-school-metaplex-core",
-    grading: "repo",
+    // Graded on-chain. The easy track forks nothing and opens no PR — the
+    // guide's deliverable is an explorer link — so the site reads the asset
+    // off devnet: a Core asset, owned by the signed-in wallet, frozen by a
+    // PermanentFreezeDelegate whose authority is None. See
+    // challenge-layers/metaplex-core/INSTALL.md.
+    grading: "chain",
     pointsCanonical: 100,
     pointsMutation: 0,
     mutationEnabled: false,

@@ -20,8 +20,9 @@ interface Outcome {
 }
 
 export function SubmitForm({ challenge }: { challenge: Challenge }) {
-  const { refresh } = useSession();
+  const { refresh, profile } = useSession();
   const [repo, setRepo] = useState("");
+  const [asset, setAsset] = useState("");
   const [sha, setSha] = useState("");
   const [output, setOutput] = useState("");
   const [copied, setCopied] = useState(false);
@@ -65,7 +66,9 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
     const body = JSON.stringify(
       isPaste
         ? { challengeId: challenge.id, output }
-        : {
+        : isChain
+          ? { challengeId: challenge.id, asset: asset.trim() }
+          : {
             challengeId: challenge.id,
             repoFullName: repo.trim(),
             // Left out when the challenge is graded on the repo alone.
@@ -118,6 +121,10 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
   // so asking for a commit SHA would be asking for something we ignore.
   const needsCommit = mode === "ci";
   const isPaste = mode === "paste";
+  const isChain = mode === "chain";
+  // What the learner adds to create() so the asset is minted to the wallet
+  // they sign in here with. Shown with their own address filled in.
+  const ownerLine = `owner: publicKey("${profile?.pubkey ?? "<your wallet>"}"),`;
 
   const ok = outcome?.status === "passed";
   const running = outcome?.status === "running";
@@ -135,10 +142,62 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
           ? "Push your branch first and let CI finish. We read the run — we never run your code."
           : isPaste
             ? "Run one command on your own machine and paste what it prints. We read it back to you — anything missing, or a devnet wallet with nothing in it, gets called out."
-            : "Automated grading is not wired up for this one yet. Give us your repository and we will check it exists and is public; the work itself is reviewed by hand."}
+            : isChain
+              ? "The proof is on devnet. Give us your asset and we read it straight off the chain: that it is yours, that it is frozen, and that nobody can ever thaw it."
+              : "Automated grading is not wired up for this one yet. Give us your repository and we will check it exists and is public; the work itself is reviewed by hand."}
       </p>
 
-      {isPaste ? (
+      {isChain ? (
+        <>
+          <p className="lbl" style={{ marginTop: 16 }}>
+            Step 1 — mint it to this wallet
+          </p>
+          <p style={{ fontSize: ".9rem", color: "var(--ink-2)", marginTop: 4 }}>
+            Add this line inside <code>create(umi, {"{ … }"})</code>, next to{" "}
+            <code>asset</code>, <code>name</code> and <code>uri</code>, and import{" "}
+            <code>publicKey</code> from <code>@metaplex-foundation/umi</code>. A
+            soulbound asset can never be moved to you later, so it has to be
+            born yours.
+          </p>
+          <div className="cmd">
+            <code>{ownerLine}</code>
+            <button
+              type="button"
+              className="btn quiet"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(ownerLine);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1800);
+                } catch {
+                  setCopied(false);
+                }
+              }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+
+          <div className="row" style={{ marginTop: 18 }}>
+            <div className="field">
+              <label className="lbl" htmlFor={`asset-${challenge.id}`}>
+                Step 2 — your asset address or explorer link
+              </label>
+              <input
+                id={`asset-${challenge.id}`}
+                value={asset}
+                onChange={(e) => setAsset(e.target.value)}
+                placeholder="https://explorer.solana.com/address/…?cluster=devnet"
+                spellCheck={false}
+                required
+              />
+            </div>
+            <button className="btn" disabled={busy || !asset.trim()}>
+              {busy ? "Reading devnet…" : "Check on devnet"}
+            </button>
+          </div>
+        </>
+      ) : isPaste ? (
         <>
           <p className="lbl" style={{ marginTop: 16 }}>
             Step 1 — run this in your terminal
@@ -275,7 +334,9 @@ export function SubmitForm({ challenge }: { challenge: Challenge }) {
           {outcome.runUrl && (
             <p style={{ marginTop: 6 }}>
               <a href={outcome.runUrl} target="_blank" rel="noopener noreferrer">
-                View the CI run →
+                {outcome.runUrl.includes("explorer.solana.com")
+                  ? "View it on the explorer →"
+                  : "View the CI run →"}
               </a>
             </p>
           )}
